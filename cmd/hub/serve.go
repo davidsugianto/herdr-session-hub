@@ -19,6 +19,8 @@ import (
 	"github.com/davidsugianto/herdr-session-hub/internal/profiles"
 	"github.com/davidsugianto/herdr-session-hub/internal/sessions"
 	"github.com/davidsugianto/herdr-session-hub/internal/store"
+	"github.com/davidsugianto/herdr-session-hub/internal/webui"
+	"github.com/davidsugianto/herdr-session-hub/web"
 )
 
 // socketTable is the live session name -> socket path map shared by the
@@ -171,9 +173,11 @@ func runServe(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		_, _ = fmt.Fprintln(stderr, "hub:", err)
 		return 1
 	}
-	handler := api.New(ctx, api.Config{Engine: engine, Store: st, Actions: exec, Secure: false, AllowedHosts: opts.allowHosts})
+	handler := api.New(ctx, api.Config{Engine: engine, Store: st, Actions: exec, Secure: false, AllowedHosts: opts.allowHosts,
+		Static: webui.Handler(web.FS())})
 	srv := &http.Server{Handler: handler, ReadHeaderTimeout: 10 * time.Second}
 	_, _ = fmt.Fprintf(stdout, "hub listening on http://%s (db %s)\n", ln.Addr(), opts.dbPath)
+	_, _ = fmt.Fprintf(stdout, "open http://%s and pair with: hub pair\n", ln.Addr())
 	for _, line := range listenAdvice(ln.Addr().String(), opts.allowHosts) {
 		_, _ = fmt.Fprintln(stderr, line)
 	}

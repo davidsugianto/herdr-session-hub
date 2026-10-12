@@ -1,0 +1,26 @@
+.se { padding: 12px 16px calc(var(--sab) + 72px); max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+.se h1 { margin: 0; font-size: 22px; }
+.se-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 14px 12px; display: flex; flex-direction: column; gap: 10px; }
+.se-card h2 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+.se-card p { margin: 0; }
+.se-card code { font-family: var(--mono); background: var(--surface-2); padding: 1px 6px; border-radius: 6px; }
+.se-muted { color: var(--muted); font-size: 14px; }
+.se-error { color: var(--danger); font-size: 14px; }
+.se-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.se-pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; background: var(--surface-2); }
+.se-conn-online { background: var(--finished); color: #fff; }
+.se-conn-offline { background: var(--blocked); color: #fff; }
+.se-conn-connecting { background: var(--waiting); color: #fff; }
+.se-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.se-item { display: flex; align-items: center; gap: 10px; min-height: var(--tap); padding: 6px 0; border-top: 1px solid var(--border); }
+.se-item:first-child { border-top: 0; }
+.se-grow { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; overflow-wrap: anywhere; }
+.se-name { font-weight: 600; }
+.se-sub { flex-basis: 100%; }
+.se-me { background: var(--accent); color: #fff; }
+.se-bar { flex: 0 0 4px; align-self: stretch; border-radius: 2px; }
+.se-confirm { background: var(--danger); color: #fff; border-color: transparent; }
+.se-about { margin: 4px 0 0; text-align: center; color: var(--muted); font-size: 12px; }
+
+.se-bg-s1 { background: var(--s1); } .se-bg-s2 { background: var(--s2); } .se-bg-s3 { background: var(--s3); }
+.se-bg-s4 { background: var(--s4); } .se-bg-s5 { background: var(--s5); } .se-bg-s6 { background: var(--s6); }

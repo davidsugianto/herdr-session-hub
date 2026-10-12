@@ -1,0 +1,14 @@
+.shell { min-height: calc(100dvh - var(--sat)); display: flex; flex-direction: column; }
+.shell-screen { flex: 1; min-width: 0; padding-bottom: calc(60px + var(--sab)); }
+.shell-detail .shell-screen { padding-bottom: 0; }
+
+.offline-banner { position: sticky; top: var(--sat); z-index: 30; background: var(--blocked); color: #fff; text-align: center; padding: 8px 12px; font-size: 14px; }
+
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; background: var(--surface); border-top: 1px solid var(--border); padding: 0 var(--sar) var(--sab) var(--sal); }
+.tab { flex: 1; position: relative; min-height: var(--tap); padding: 6px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--muted); text-decoration: none; font-size: 11px; }
+.tab.active { color: var(--accent); }
+.tab-icon { font-size: 20px; line-height: 1; }
+.tab-badge { position: absolute; top: 2px; left: calc(50% + 8px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--blocked); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+
+.toast-host { position: fixed; left: 12px; right: 12px; bottom: calc(76px + var(--sab)); z-index: 100; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+.toast { max-width: 100%; background: var(--text); color: var(--bg); padding: 10px 14px; border-radius: 10px; font-size: 14px; box-shadow: 0 4px 16px rgb(0 0 0 / .25); }

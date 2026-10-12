@@ -1,0 +1,30 @@
+/* Global tokens and base. Components add their own co-located CSS files and use these variables. */
+:root {
+  --bg: #f6f5f1; --surface: #ffffff; --surface-2: #eceae3; --text: #1d1f23; --muted: #6b6f78; --border: #d9d6cc;
+  --blocked: #d9381e; --finished: #2f8f4e; --working: #2d6fd6; --waiting: #8a8f98; --accent: #2d6fd6; --danger: #d9381e;
+  --s1: #2d6fd6; --s2: #2f8f4e; --s3: #b7791f; --s4: #8e44ad; --s5: #d6336c; --s6: #0f8b8d;
+  --sat: env(safe-area-inset-top, 0px); --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px); --sal: env(safe-area-inset-left, 0px);
+  --tap: 44px; --radius: 12px;
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161a; --surface: #1d2025; --surface-2: #272b32; --text: #e8e9ec; --muted: #9096a1; --border: #31353d;
+    --blocked: #ff6b52; --finished: #4cc27a; --working: #6aa2ff; --waiting: #9aa0aa; --accent: #6aa2ff; --danger: #ff6b52;
+    --s1: #6aa2ff; --s2: #4cc27a; --s3: #e0a53c; --s4: #c08be0; --s5: #ff7aa8; --s6: #4fd1d3;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body { font: 16px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; overscroll-behavior: none; }
+#app { min-height: 100dvh; padding: var(--sat) var(--sar) 0 var(--sal); }
+button { font: inherit; color: inherit; min-height: var(--tap); border-radius: 10px; border: 1px solid var(--border); background: var(--surface); padding: 0 14px; }
+button.primary { background: var(--accent); border-color: transparent; color: #fff; }
+button.danger { color: var(--danger); }
+button:disabled { opacity: .5; }
+input, textarea { font: inherit; color: inherit; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; width: 100%; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: var(--surface-2); }
+.badge.blocked { background: var(--blocked); color: #fff; } .badge.finished { background: var(--finished); color: #fff; }
+.badge.working { background: var(--working); color: #fff; } .badge.waiting { background: var(--waiting); color: #fff; }
