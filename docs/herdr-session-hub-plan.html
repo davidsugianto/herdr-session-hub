@@ -328,7 +328,7 @@ flowchart LR
     <table>
       <thead><tr><th>Part</th><th>Choice</th><th>Why</th></tr></thead>
       <tbody>
-        <tr><td>Server</td><td>Go 1.23+, <code>net/http</code>, SSE</td><td>Single static binary; SSE survives tunnels and reconnects with <code>Last-Event-ID</code></td></tr>
+        <tr><td>Server</td><td>Go 1.26+, <code>net/http</code>, SSE</td><td>Single static binary; SSE survives tunnels and reconnects with <code>Last-Event-ID</code></td></tr>
         <tr><td>Storage</td><td><code>modernc.org/sqlite</code></td><td>Pure Go, no cgo, easy cross-compile</td></tr>
         <tr><td>Web app</td><td>Preact + Vite, embedded with <code>go:embed</code></td><td>Small bundle (target under 60 KB gzipped), installable PWA, service worker for push</td></tr>
         <tr><td>Push</td><td>Web Push with VAPID (<code>webpush-go</code>)</td><td>No third-party push service; keys generated on first run</td></tr>

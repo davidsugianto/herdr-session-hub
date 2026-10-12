@@ -401,6 +401,27 @@ func TestBodyValidation(t *testing.T) {
 	}
 }
 
+func TestKeysLimitMatchesExecutor(t *testing.T) {
+	body := func(n int) string {
+		return `{"keys":[` + strings.TrimSuffix(strings.Repeat(`"a",`, n), ",") + `]}`
+	}
+	e := newEnv(t)
+	w := e.do("POST", "/api/agents/labs/term_1/keys", body(21))
+	if w.Code != 400 || errCode(t, w) != "bad_request" {
+		t.Fatalf("21 keys: got %d %s, want 400 bad_request", w.Code, w.Body)
+	}
+	if !strings.Contains(w.Body.String(), "between 1 and 20") {
+		t.Fatalf("message = %s, want it to contain %q", w.Body, "between 1 and 20")
+	}
+	if len(e.act.callList()) != 0 {
+		t.Fatal("action performed despite bad body")
+	}
+	e = newEnv(t)
+	if w := e.do("POST", "/api/agents/labs/term_1/keys", body(20)); w.Code != 200 {
+		t.Fatalf("20 keys: got %d %s, want 200", w.Code, w.Body)
+	}
+}
+
 func TestAuditWriteFailureDoesNotFailAction(t *testing.T) {
 	e := newEnv(t)
 	e.st.auditErr = errors.New("disk full")

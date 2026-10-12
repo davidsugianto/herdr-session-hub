@@ -78,6 +78,18 @@ func (c *authCache) lookup(ctx context.Context, token string) (store.Device, err
 	return dev, nil
 }
 
+// forget drops every cached lookup for deviceID so a revocation takes effect
+// on the next request instead of after the TTL.
+func (c *authCache) forget(deviceID string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for k, e := range c.m {
+		if e.dev.ID == deviceID {
+			delete(c.m, k)
+		}
+	}
+}
+
 // extractToken returns the bearer token or, failing that, the cookie value.
 // An Authorization header that is not a Bearer credential yields no token
 // (it does not fall back to the cookie).

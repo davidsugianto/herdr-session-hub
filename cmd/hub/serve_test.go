@@ -1,9 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -81,4 +85,93 @@ func TestTimelineRecorderSurvivesSlowStore(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	addAgent(engine, "after")
 	waitUntil(t, "event after the drop stored", func() bool { return st.has("S/after") })
+}
+
+const (
+	adviceReachable = "hub: warning: not listening on loopback; the hub is reachable from the network and anyone who can reach this port can try to pair"
+	adviceNoAllow   = "hub: no -allow-host given: requests with a non-loopback Host header will be rejected with 403 (pass e.g. -allow-host '*.ts.net' or -allow-host my-mac.local)"
+)
+
+func TestListenAdvice(t *testing.T) {
+	ts := []string{"*.ts.net"}
+	multi := []string{"*.ts.net", "my-mac.local"}
+	tests := []struct {
+		name  string
+		addr  string
+		hosts []string
+		want  []string
+	}{
+		{"loopback v4", "127.0.0.1:7878", nil, nil},
+		{"loopback v4 other", "127.1.2.3:7878", nil, nil},
+		{"loopback v6", "[::1]:7878", nil, nil},
+		{"localhost", "localhost:7878", nil, nil},
+		{"loopback with allow-hosts stays quiet", "127.0.0.1:7878", ts, nil},
+		{"wildcard v4", "0.0.0.0:7878", nil, []string{adviceReachable, adviceNoAllow}},
+		{"wildcard empty host", ":7878", nil, []string{adviceReachable, adviceNoAllow}},
+		{"wildcard v6", "[::]:7878", nil, []string{adviceReachable, adviceNoAllow}},
+		{"lan ip", "192.168.1.5:7878", nil, []string{adviceReachable, adviceNoAllow}},
+		{"lan ip with suffix", "192.168.1.5:7878", ts, []string{adviceReachable, "hub: allowed Host names: *.ts.net (plus loopback)"}},
+		{"wildcard with several", "0.0.0.0:7878", multi, []string{adviceReachable, "hub: allowed Host names: *.ts.net, my-mac.local (plus loopback)"}},
+		{"empty host with allow", ":7878", ts, []string{adviceReachable, "hub: allowed Host names: *.ts.net (plus loopback)"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := listenAdvice(tt.addr, tt.hosts)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("listenAdvice(%q, %v) = %q, want %q", tt.addr, tt.hosts, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseServeFlagsAllowHost(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		o, err := parseServeFlags(nil, io.Discard)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if o.listen != "127.0.0.1:7878" {
+			t.Fatalf("listen = %q", o.listen)
+		}
+		if len(o.allowHosts) != 0 {
+			t.Fatalf("allowHosts = %q, want none", o.allowHosts)
+		}
+	})
+	t.Run("repeated single and double dash, trimmed", func(t *testing.T) {
+		o, err := parseServeFlags([]string{"-allow-host", " my-mac.local ", "--allow-host", "*.ts.net", "-allow-host=other.example"}, io.Discard)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []string{"my-mac.local", "*.ts.net", "other.example"}
+		if !reflect.DeepEqual(o.allowHosts, want) {
+			t.Fatalf("allowHosts = %q, want %q", o.allowHosts, want)
+		}
+	})
+	for _, v := range []string{"", "   "} {
+		t.Run(fmt.Sprintf("empty %q rejected", v), func(t *testing.T) {
+			var buf bytes.Buffer
+			_, err := parseServeFlags([]string{"-allow-host", v}, &buf)
+			if err == nil {
+				t.Fatal("want error")
+			}
+			if !errors.Is(err, errEmptyAllowHost) {
+				t.Fatalf("err = %v, want errEmptyAllowHost", err)
+			}
+			if !strings.Contains(err.Error(), "-allow-host needs a host name") {
+				t.Fatalf("err = %v", err)
+			}
+			if buf.Len() != 0 {
+				t.Fatalf("flag usage leaked to stderr: %q", buf.String())
+			}
+		})
+	}
+	t.Run("other flags still parse", func(t *testing.T) {
+		o, err := parseServeFlags([]string{"-listen", "0.0.0.0:9000", "-db", "/tmp/x.db"}, io.Discard)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if o.listen != "0.0.0.0:9000" || o.dbPath != "/tmp/x.db" {
+			t.Fatalf("got %+v", o)
+		}
+	})
 }
