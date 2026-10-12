@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -185,14 +186,32 @@ func (s *fakeStore) DeviceByToken(_ context.Context, token string) (store.Device
 	}
 	return d, nil
 }
-func (s *fakeStore) Devices(context.Context) ([]store.Device, error) { return nil, nil }
+func (s *fakeStore) Devices(context.Context) ([]store.Device, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	seen := map[string]bool{}
+	var out []store.Device
+	for _, d := range s.tokens {
+		if !seen[d.ID] {
+			seen[d.ID] = true
+			out = append(out, d)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out, nil
+}
 func (s *fakeStore) RevokeDevice(_ context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	found := false
 	for t, d := range s.tokens {
 		if d.ID == id {
 			delete(s.tokens, t)
+			found = true
 		}
+	}
+	if !found {
+		return store.ErrNotFound
 	}
 	return nil
 }

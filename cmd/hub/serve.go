@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -47,23 +48,87 @@ func (t *socketTable) Socket(session string) (string, bool) {
 	return p, ok
 }
 
-func runServe(ctx context.Context, args []string, stdout, stderr io.Writer) int {
+// serveOptions are the parsed `hub serve` flags.
+type serveOptions struct {
+	listen     string
+	root       string
+	cfgPath    string
+	dbPath     string
+	interval   time.Duration
+	allowHosts []string
+}
+
+var errEmptyAllowHost = errors.New("-allow-host needs a host name")
+
+// parseServeFlags parses the serve flags without binding anything. Flag
+// diagnostics go to stderr, except an empty -allow-host, which is reported
+// only through the returned error.
+func parseServeFlags(args []string, stderr io.Writer) (serveOptions, error) {
+	var o serveOptions
+	var out strings.Builder
+	var emptyHost bool // flag wraps errors from Func with %v, so errors.Is would not see ours
 	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	listen := fs.String("listen", "127.0.0.1:7878", "address to listen on (loopback only unless you pass something else on purpose)")
-	root := fs.String("root", sessions.DefaultRoot(), "herdr config dir containing sessions/")
-	cfgPath := fs.String("config", config.DefaultPath(), "optional hub config.toml (session labels)")
-	dbPath := fs.String("db", store.DefaultPath(), "SQLite database path")
-	interval := fs.Duration("interval", 500*time.Millisecond, "how often to look for new or removed sessions")
-	if err := fs.Parse(args); err != nil {
+	fs.SetOutput(&out)
+	fs.StringVar(&o.listen, "listen", "127.0.0.1:7878", "address to listen on (loopback only unless you pass something else on purpose)")
+	fs.StringVar(&o.root, "root", sessions.DefaultRoot(), "herdr config dir containing sessions/")
+	fs.StringVar(&o.cfgPath, "config", config.DefaultPath(), "optional hub config.toml (session labels)")
+	fs.StringVar(&o.dbPath, "db", store.DefaultPath(), "SQLite database path")
+	fs.DurationVar(&o.interval, "interval", 500*time.Millisecond, "how often to look for new or removed sessions")
+	fs.Func("allow-host", "extra Host header name to accept besides loopback, e.g. my-mac.local or '*.ts.net' (repeatable)", func(v string) error {
+		v = strings.TrimSpace(v)
+		if v == "" {
+			emptyHost = true
+			return errEmptyAllowHost
+		}
+		o.allowHosts = append(o.allowHosts, v)
+		return nil
+	})
+	err := fs.Parse(args)
+	if err != nil {
+		if emptyHost {
+			return o, errEmptyAllowHost
+		}
+		_, _ = io.WriteString(stderr, out.String())
+		return o, err
+	}
+	return o, nil
+}
+
+// listenAdvice returns the warning lines to print at startup for a listen
+// address. Loopback binds produce none.
+func listenAdvice(addr string, allowHosts []string) []string {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		host = addr
+	}
+	host = strings.Trim(host, "[]")
+	if strings.EqualFold(host, "localhost") {
+		return nil
+	}
+	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+		return nil
+	}
+	lines := []string{"hub: warning: not listening on loopback; the hub is reachable from the network and anyone who can reach this port can try to pair"}
+	if len(allowHosts) == 0 {
+		return append(lines, "hub: no -allow-host given: requests with a non-loopback Host header will be rejected with 403 (pass e.g. -allow-host '*.ts.net' or -allow-host my-mac.local)")
+	}
+	return append(lines, "hub: allowed Host names: "+strings.Join(allowHosts, ", ")+" (plus loopback)")
+}
+
+func runServe(ctx context.Context, args []string, stdout, stderr io.Writer) int {
+	opts, err := parseServeFlags(args, stderr)
+	if err != nil {
+		if errors.Is(err, errEmptyAllowHost) {
+			_, _ = fmt.Fprintln(stderr, "hub:", err)
+		}
 		return 2
 	}
-	cfg, err := config.Load(*cfgPath)
+	cfg, err := config.Load(opts.cfgPath)
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, "hub:", err)
 		return 1
 	}
-	st, err := store.Open(*dbPath)
+	st, err := store.Open(opts.dbPath)
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, "hub:", err)
 		return 1
@@ -99,19 +164,18 @@ func runServe(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		}
 	}()
 	var wg sync.WaitGroup
-	go superviseSessions(ctx, &wg, *root, *interval, sockets, updates, engine, stdout, cfg)
+	go superviseSessions(ctx, &wg, opts.root, opts.interval, sockets, updates, engine, stdout, cfg)
 
-	ln, err := net.Listen("tcp", *listen)
+	ln, err := net.Listen("tcp", opts.listen)
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, "hub:", err)
 		return 1
 	}
-	host, _, _ := net.SplitHostPort(ln.Addr().String())
-	handler := api.New(ctx, api.Config{Engine: engine, Store: st, Actions: exec, Secure: false})
+	handler := api.New(ctx, api.Config{Engine: engine, Store: st, Actions: exec, Secure: false, AllowedHosts: opts.allowHosts})
 	srv := &http.Server{Handler: handler, ReadHeaderTimeout: 10 * time.Second}
-	_, _ = fmt.Fprintf(stdout, "hub listening on http://%s (db %s)\n", ln.Addr(), *dbPath)
-	if ip := net.ParseIP(host); ip == nil || !ip.IsLoopback() {
-		_, _ = fmt.Fprintln(stderr, "hub: warning: not listening on loopback; anyone who can reach this port can try to pair")
+	_, _ = fmt.Fprintf(stdout, "hub listening on http://%s (db %s)\n", ln.Addr(), opts.dbPath)
+	for _, line := range listenAdvice(ln.Addr().String(), opts.allowHosts) {
+		_, _ = fmt.Fprintln(stderr, line)
 	}
 
 	errc := make(chan error, 1)

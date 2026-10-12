@@ -24,7 +24,7 @@ const (
 	detailLastLines    = 5
 	defaultSince       = 2 * time.Hour
 	maxSince           = 14 * 24 * time.Hour
-	maxKeys            = 64
+	maxKeys            = 20 // keep in sync with maxKeys in internal/actions/executor.go
 	readTimeout        = 10 * time.Second
 )
 

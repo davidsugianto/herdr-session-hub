@@ -110,6 +110,8 @@ func New(ctx context.Context, c Config) http.Handler {
 	mux.Handle("GET /api/agents", s.authed(s.handleAgents))
 	mux.Handle("GET /api/agents/{rest...}", s.authed(s.handleAgentGet))
 	mux.Handle("POST /api/agents/{rest...}", s.authed(s.handleAgentPost))
+	mux.Handle("GET /api/devices", s.authed(s.handleDevices))
+	mux.Handle("DELETE /api/devices/{id}", s.authed(s.handleRevokeDevice))
 	mux.Handle("GET /api/timeline", s.authed(s.handleTimeline))
 	mux.Handle("GET /api/stream", s.authed(s.handleStream))
 	mux.Handle("/api/", s.authed(func(w http.ResponseWriter, r *http.Request) {

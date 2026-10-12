@@ -89,4 +89,43 @@ real sockets; the rest come from the schema or herdr's docs.
   silently, but actions address panes, so milestone 1 needs an "agent changed"
   update.
 - Repeated `events_lost` with no progress in between backs off; `Resync` never does.
-- The Apache-2.0 `LICENSE` file is still missing (download from apache.org failed).
+- The Apache-2.0 `LICENSE` file was still missing at the end of milestone 0 (the
+  download from apache.org failed); it was added in the milestone 1 cleanup.
+
+# Milestone 1 findings
+
+Findings from running the hub core against herdr 0.9.3 with a throwaway agent.
+Facts marked **verified** were observed against a real session.
+
+1. **herdr's `name` is the user-assigned agent name, `agent` is the agent type.**
+   The name is free text (for example `sa-d810-3`); the type is `claude`, `pi` or
+   `omp`. The hub keys prompt profiles by `Kind` (the type) and falls back to the
+   name only when no kind is known. (**verified**: a named Claude agent was
+   reported as `claude` in `kind`.)
+2. **The trust-folder dialog counts as `blocked` (verified).** herdr reports the
+   "Is this a project you created or one you trust?" dialog as `blocked`, although
+   it is not a tool permission prompt. It has no numbered options, so the claude
+   profile does not parse it, and `agent start` can return `agent_not_ready` while
+   the dialog is showing.
+3. **A real Claude Code permission prompt parsed correctly (verified for Claude
+   only).** The prompt was for a Bash command and its options were: Yes / Yes, and
+   always allow access to <dir> from this project / Yes, and switch to auto mode /
+   No. Trust must map to the "always allow" option and never to "switch to auto
+   mode"; the profile's trust regex does this. Profiles stay `verified = false`
+   until pi and omp prompts are captured too.
+4. **A subscription whose buffer (256) overflows is closed by the engine, so every
+   consumer must resubscribe.** The API ring resubscribes and resets (clients get a
+   fresh snapshot). The timeline recorder resubscribes too; events dropped in
+   between are not recorded.
+5. **Actions verified live through the API against a throwaway agent:** pair,
+   reply, approve (wrong hash -> 409), deny with note, trust, send, keys,
+   interrupt, seen, reply refused while blocked (409 `agent_blocked`), SSE
+   snapshot and changes, and timeline and audit rows.
+6. **Go version: the hub now requires Go 1.26.** `modernc.org/sqlite` v1.60 needs
+   it; v1.38 would be the last version for Go 1.23. Decision: keep Go 1.26.
+
+## Not verified
+
+- **Stopping and restarting a real session** against the hub.
+- **`events_lost` against a real server.**
+- **pi and omp blocked screens.**
