@@ -94,6 +94,9 @@ type UpdateType string
 const (
 	// UpdateTransition: an agent's status changed; From/To are raw statuses.
 	UpdateTransition UpdateType = "transition"
+	// UpdateChanged: a known agent's non-status fields (PaneID, Name, Kind,
+	// Cwd, Title) changed; Agent holds the new state and the status is unchanged.
+	UpdateChanged UpdateType = "changed"
 	// UpdateAdded: an agent appeared (first sync, a new agent, or found on resync).
 	UpdateAdded UpdateType = "added"
 	// UpdateRemoved: an agent disappeared; Agent is its last known state.
@@ -325,8 +328,9 @@ func (r *runner) reconcile(ctx context.Context, agents []Agent) bool {
 	return true
 }
 
-// apply stores a and emits Added or, if the status changed, Transition.
-// Changes to other fields update the cache silently.
+// apply stores a and emits Added or, if the status changed, Transition (only).
+// If the status is unchanged but other fields differ it emits Changed;
+// an identical re-apply emits nothing.
 func (r *runner) apply(ctx context.Context, a Agent) bool {
 	old, known := r.cache[a.ID]
 	r.cache[a.ID] = a
@@ -335,6 +339,8 @@ func (r *runner) apply(ctx context.Context, a Agent) bool {
 		return r.emit(ctx, Update{Type: UpdateAdded, Agent: a})
 	case old.Status != a.Status:
 		return r.emit(ctx, Update{Type: UpdateTransition, Agent: a, From: old.Status, To: a.Status})
+	case old != a:
+		return r.emit(ctx, Update{Type: UpdateChanged, Agent: a})
 	}
 	return true
 }

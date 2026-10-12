@@ -1,5 +1,7 @@
-// Command hub is the herdr-session-hub spike CLI.
+// Command hub is the herdr-session-hub CLI.
 //
+//	hub serve    run the hub: state engine, REST + SSE API, SQLite timeline
+//	hub pair     print a one-time pairing code (and QR) for a new device
 //	hub watch    print live agent state changes for every herdr session
 //	hub capture  save a pane's text (e.g. a blocked prompt) as a fixture
 package main
@@ -16,6 +18,8 @@ import (
 const usage = `usage: hub <command> [flags]
 
 commands:
+  serve     run the hub on 127.0.0.1:7878 (REST + SSE API)
+  pair      print a one-time pairing code and QR for a new device
   watch     print live agent state changes for every herdr session
   capture   save a pane's text as a fixture: hub capture <session> <agent-or-pane>
 
@@ -33,6 +37,10 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	switch args[0] {
+	case "serve":
+		return runServe(ctx, args[1:], stdout, stderr)
+	case "pair":
+		return runPair(ctx, args[1:], stdout, stderr)
 	case "watch":
 		return runWatch(ctx, args[1:], stdout, stderr)
 	case "capture":

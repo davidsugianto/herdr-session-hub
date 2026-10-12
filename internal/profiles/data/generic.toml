@@ -1,0 +1,14 @@
+# Generic fallback profile for unknown agents.
+#
+# verified = false: it recognises nothing, so there is nothing to verify. It has
+# no [prompt] section, so Parse never reports a prompt; only interrupt and force
+# interrupt exist. Everything else goes through the raw key grid.
+# Schema: see claude.toml.
+
+name = "generic"
+verified = false
+match = []
+
+[keys]
+interrupt = ["esc"]
+force_interrupt = ["ctrl+c"]

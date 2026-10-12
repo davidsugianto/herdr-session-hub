@@ -1,0 +1,27 @@
+# omp profile.
+#
+# verified = false: no real blocked omp screens were captured yet (omp was not
+# running during the spike, see docs/spike-notes.md). The question and option
+# shapes below are guesses at the "ask" option picker and destructive-tool
+# permission prompt; verify against real captures. Schema: see claude.toml.
+
+name = "omp"
+verified = false
+match = ["omp"]
+
+[prompt]
+tail_lines = 40
+context_lines = 12
+question = '^.{3,}[?:]$'
+option = '^(?:[❯>›]\s*)?(\d+)[.)]\s+(\S.*)$'
+marker = "number"
+approve = '(?i)^(?:yes|allow|approve|accept|ok)\b'
+trust = '(?i)(?:answer once and forget|don.t ask again|always allow|allow always|remember)'
+deny = '(?i)^(?:no|deny|reject|cancel)\b'
+
+[keys]
+approve = ["{approve_option}", "enter"]
+trust = ["{trust_option}", "enter"]
+deny = ["{deny_option}", "enter"]
+interrupt = ["esc"]
+force_interrupt = ["ctrl+c"]

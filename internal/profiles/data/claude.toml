@@ -1,0 +1,59 @@
+# Claude Code profile.
+#
+# verified = false: no real blocked Claude Code screens were captured yet (the
+# spike only saw a two-second block, see docs/spike-notes.md). The prompt shape
+# below is the best-known tool permission menu and MUST be checked against real
+# captures before this is flipped to true.
+#
+# Schema (shared by every file in this directory):
+#   name      profile name, unique across files; "generic" is the fallback.
+#   verified  true only once checked against real captured screens.
+#   match     agent names (case-insensitive) that select this profile; the
+#             name itself always matches too.
+#   [prompt]  optional; without it Parse never recognises a prompt.
+#     tail_lines     only the last N lines of the ANSI-stripped screen are read
+#                    (trailing blank lines are dropped first). Default 40.
+#     context_lines  how many non-blank lines above the question are kept as
+#                    part of Prompt.Text, so the command being approved is part
+#                    of the hash. Default 12.
+#     context_start  optional regex; a context line matching it is the first
+#                    context line (e.g. the "Bash command" header).
+#     question       regex for the question line (whole trimmed line).
+#     option         regex for an option line; group 1 is the marker (digit or
+#                    letter), group 2 the label. A cursor glyph may precede it.
+#     marker         "number" (1,2,3...) or "letter" (a,b,c...). Options must
+#                    appear in sequence starting at the first marker.
+#     approve|trust|deny  regexes matched against option labels to find the
+#                    option for that action. trust and deny are resolved first;
+#                    approve is the first match that is neither of them.
+#     trust_rule / trust_rule_template  optional; trust_rule is matched against
+#                    the trust option label and the template (regexp expand
+#                    syntax, ${1}) builds Prompt.TrustRule.
+#   [keys]    action -> herdr key list. Actions: approve, trust, deny,
+#             interrupt, force_interrupt. {approve_option}, {trust_option} and
+#             {deny_option} expand to the marker key of the matching option; an
+#             action whose option is absent has no keys.
+
+name = "claude"
+verified = false
+match = ["claude", "claude-code"]
+
+[prompt]
+tail_lines = 40
+context_lines = 12
+context_start = '^(?i:bash command|edit file|create file|write file|read file|fetch|web search|tool use)\b'
+question = '^(?:Do you want to .+\?|Allow .+\?)$'
+option = '^(?:[❯>]\s*)?(\d+)\.\s+(\S.*)$'
+marker = "number"
+approve = '(?i)^yes\b'
+trust = '(?i)^yes,.*(?:don.t ask again|allow all|always)'
+deny = '(?i)^no\b'
+trust_rule = '(?i)don.t ask again for (.+?) commands?\b'
+trust_rule_template = 'Bash(${1}:*)'
+
+[keys]
+approve = ["{approve_option}", "enter"]
+trust = ["{trust_option}", "enter"]
+deny = ["{deny_option}", "enter"]
+interrupt = ["esc"]
+force_interrupt = ["ctrl+c"]
