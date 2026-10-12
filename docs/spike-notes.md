@@ -48,14 +48,29 @@ real sockets; the rest come from the schema or herdr's docs.
   `[labs] ... done -> idle`, `[labs] ... idle -> working`, `[work] pi ... working -> done`.
   This exercised the per-pane status subscriptions and the `agent.get` re-read.
 - herdr reports an unknown agent target as `agent_not_found` (not `not_found`).
+- **A new pane is picked up live.** A Claude Code agent started in `work` while
+  `hub watch` ran: it appeared as `+ claude w1:p2 unknown` (the `pane_created`
+  resync), then its status subscription reported `idle -> blocked -> idle` within
+  two seconds. That blocked state was too short to capture.
+- **A free-text question is not `blocked`.** A Claude Code agent that ends its turn
+  by asking the user to choose among options in prose ("Pick one: 1. ... 2. ...")
+  was reported by herdr as `idle`, not `blocked`; only tool permission menus count.
+  So for such an agent the hub sees an ordinary finished turn. The "needs you"
+  state, the approve/trust buttons and their profiles only apply to real permission
+  prompts. Milestone 1 should decide how to treat "finished and waiting on a
+  question" (for example, show the last lines in the notification).
 
 ## Not verified
 
 - **Stopping and restarting a real session** (isolation and reconnect). Not done:
   stopping a session kills its agents, so it needs a throwaway named session.
 - **`events_lost` against the real server.**
-- **Blocked-screen captures** for Claude Code, omp and pi (need the author to
-  trigger the prompts; captured text may contain secrets).
+- **Blocked-screen captures** for Claude Code, omp and pi. Attempted: a watcher
+  that captures a pane on `-> blocked` ran for about 30 minutes, but only one
+  two-second block occurred, omp was not running, and pi never blocked. The two
+  panes captured manually were not blocked prompts and held unrelated work
+  content, so they were deleted. `hub capture` works; capture real permission
+  menus when building the milestone 1 profiles.
 - **Tailscale `Tailscale-User-Login` header.** Tailscale is not installed on this
   machine, so `tailscale serve` could not be probed.
 
