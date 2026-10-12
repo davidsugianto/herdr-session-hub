@@ -52,6 +52,10 @@ type Config struct {
 	AllowedHosts []string
 	// HeartbeatInterval is the SSE keep-alive comment period (default 15s).
 	HeartbeatInterval time.Duration
+	// Static, when set, serves every path the API does not own (the web UI).
+	// It sets its own headers; the API's strict CSP and no-store apply only to
+	// /api/ and /healthz. The Host check still guards it.
+	Static http.Handler
 }
 
 type server struct {
@@ -63,6 +67,7 @@ type server struct {
 	secure    bool
 	hosts     hostMatcher
 	heartbeat time.Duration
+	static    bool // a Static handler is mounted: strict headers are path-scoped
 
 	auth        *authCache
 	actionLimit *limiter // per device: burst 30, refill 2/s
@@ -91,6 +96,7 @@ func New(ctx context.Context, c Config) http.Handler {
 		secure:      c.Secure,
 		hosts:       newHostMatcher(c.AllowedHosts),
 		heartbeat:   hb,
+		static:      c.Static != nil,
 		auth:        newAuthCache(c.Store, now, authCacheTTL),
 		actionLimit: newLimiter(30, 2, now),
 		pairLimit:   newLimiter(10, 10.0/60.0, now),
@@ -117,22 +123,36 @@ func New(ctx context.Context, c Config) http.Handler {
 	mux.Handle("/api/", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		writeAPIErr(w, newErr(http.StatusNotFound, "not_found", "no such route"))
 	}))
+	if c.Static != nil {
+		// Lowest precedence: "/api/" and "GET /healthz" are more specific.
+		mux.Handle("/", c.Static)
+	}
 	return s.base(mux)
 }
 
-// base rejects foreign Host headers and sets the API's security headers.
+// base rejects foreign Host headers and sets the API's security headers. The
+// Host check runs before everything, static files included. The strict
+// API headers (CSP default-src 'none', no-store) go on /api/, /healthz and any
+// rejected request; static responses keep the headers their handler sets.
 func (s *server) base(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("X-Content-Type-Options", "nosniff")
-		h.Set("Cache-Control", "no-store")
-		h.Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
-		if !s.hosts.allowed(r.Host) {
+		allowed := s.hosts.allowed(r.Host)
+		if !allowed || !s.static || isAPIPath(r.URL.Path) {
+			h.Set("Cache-Control", "no-store")
+			h.Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
+		}
+		if !allowed {
 			writeAPIErr(w, newErr(http.StatusForbidden, "forbidden_host", "host not allowed"))
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func isAPIPath(p string) bool {
+	return p == "/healthz" || strings.HasPrefix(p, "/api/")
 }
 
 // ---- host matching ----

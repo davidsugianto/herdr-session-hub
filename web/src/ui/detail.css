@@ -1,0 +1,25 @@
+.detail { display: flex; flex-direction: column; height: calc(100dvh - var(--sat)); }
+.detail-header { flex: none; display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.detail-back { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--accent); text-decoration: none; }
+.detail-head { flex: 1; min-width: 0; }
+.detail-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detail-kind { color: var(--muted); font-weight: 400; }
+.detail-sub { display: flex; gap: 10px; font-size: 13px; color: var(--muted); }
+.detail-session { font-weight: 600; }
+.detail-session.s1 { color: var(--s1); } .detail-session.s2 { color: var(--s2); } .detail-session.s3 { color: var(--s3); }
+.detail-session.s4 { color: var(--s4); } .detail-session.s5 { color: var(--s5); } .detail-session.s6 { color: var(--s6); }
+.detail-offline { color: var(--blocked); }
+.detail-missing { padding: 24px 14px; color: var(--muted); }
+
+.detail-main { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 10px 14px; overflow-y: auto; }
+
+.detail-actions { position: relative; flex: none; display: flex; gap: 8px; padding: 8px 14px calc(8px + var(--sab)); border-top: 1px solid var(--border); background: var(--surface); }
+.detail-actions > .primary, .detail-actions > .hold { flex: 1; }
+.detail-more { width: var(--tap); padding: 0; font-size: 20px; }
+.detail-menu { position: absolute; right: 14px; bottom: calc(100% + 6px); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px; box-shadow: 0 4px 16px rgb(0 0 0 / .2); }
+
+.hold { position: relative; overflow: hidden; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; }
+.hold-label { position: relative; z-index: 1; }
+.hold::after { content: ""; position: absolute; inset: 0; background: var(--danger); opacity: .25; transform: scaleX(0); transform-origin: left; }
+.hold.holding::after { animation: hold-fill 800ms linear forwards; }
+@keyframes hold-fill { to { transform: scaleX(1); } }

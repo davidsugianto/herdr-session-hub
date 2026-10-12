@@ -1,0 +1,27 @@
+.keys { padding: 12px calc(16px + var(--sar)) calc(24px + var(--sab)) calc(16px + var(--sal)); display: flex; flex-direction: column; gap: 16px; }
+.keys-target { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.keys-target-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.keys-target-sub { font-size: 13px; color: var(--muted); }
+.keys-empty { padding: 32px 16px; text-align: center; color: var(--muted); display: flex; flex-direction: column; gap: 12px; align-items: center; }
+.keys-empty a { color: var(--accent); min-height: var(--tap); display: inline-flex; align-items: center; }
+.keys-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.keys-digits { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; }
+.keys-key {
+  position: relative; overflow: hidden; min-height: var(--tap); padding: 0 6px; font-weight: 500;
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation;
+  transition: background .12s;
+}
+.keys-key:active, .keys-key.pressed { background: var(--surface-2); transform: scale(.97); }
+.keys-key.pressed { border-color: var(--accent); }
+.keys-key.danger::after {
+  content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--danger);
+}
+.keys-key.danger.holding::after { width: 100%; transition: width .8s linear; }
+.keys-hint { margin: 0; font-size: 12px; color: var(--muted); }
+.keys-send { display: flex; flex-direction: column; gap: 8px; }
+.keys-send-row { display: flex; gap: 8px; }
+.keys-send-row input { flex: 1; min-width: 0; }
+.keys-check { display: flex; align-items: center; gap: 8px; min-height: var(--tap); }
+.keys-check input { width: 22px; height: 22px; padding: 0; }
+.keys-error { margin: 0; color: var(--danger); font-size: 14px; }
+.keys h2 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }

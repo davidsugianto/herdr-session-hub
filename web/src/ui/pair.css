@@ -1,0 +1,19 @@
+.pair-form { display: flex; flex-direction: column; gap: 10px; }
+.pair-label { font-size: 13px; color: var(--muted); }
+.pair-input { min-height: var(--tap); font-family: var(--mono); }
+.pair-btn { width: 100%; }
+.pair-error { margin: 0; color: var(--danger); font-size: 14px; }
+
+.pair-screen {
+  min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+  padding: calc(var(--sat) + 24px) calc(var(--sar) + 20px) calc(var(--sab) + 24px) calc(var(--sal) + 20px);
+}
+.pair-card {
+  width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 22px 20px; display: flex; flex-direction: column; gap: 14px;
+}
+.pair-card h1 { margin: 0; font-size: 22px; }
+.pair-card p { margin: 0; color: var(--muted); font-size: 15px; }
+.pair-card code { font-family: var(--mono); background: var(--surface-2); padding: 1px 6px; border-radius: 6px; color: var(--text); }
+.pair-steps { margin: 0; padding-left: 20px; color: var(--muted); font-size: 15px; display: flex; flex-direction: column; gap: 6px; }
+.pair-divider { border: 0; border-top: 1px solid var(--border); margin: 2px 0; width: 100%; }
