@@ -1,0 +1,4 @@
+Which file should I edit?
+ ❯ 1. main.go
+   2. Answer once and forget
+   3. No thanks

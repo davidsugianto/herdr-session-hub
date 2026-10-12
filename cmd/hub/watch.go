@@ -29,6 +29,8 @@ func formatUpdate(u sessions.Update, label func(string) string) string {
 		return fmt.Sprintf("%s+ %s  %s", prefix, agent, u.Agent.Status)
 	case sessions.UpdateRemoved:
 		return fmt.Sprintf("%s- %s", prefix, agent)
+	case sessions.UpdateChanged:
+		return fmt.Sprintf("%s~ %s  %s", prefix, agent, u.Agent.Status)
 	case sessions.UpdateTransition:
 		return fmt.Sprintf("%s%s  %s -> %s", prefix, agent, u.From, u.To)
 	}

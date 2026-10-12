@@ -254,10 +254,7 @@ func TestLoopTransitionAndNoDuplicate(t *testing.T) {
 	loopStart(t, "s", src, out, loopOpts())
 	loopExpect(t, out, "s", up(UpdateOnline, "", "", ""), up(UpdateAdded, "a1", "", ""))
 
-	// Same status again (even with other fields changed): no update.
-	same := ag("a1", "working")
-	same.Title = "renamed"
-	st.push(SourceEvent{Kind: AgentUpsert, Agent: same})
+	// Same status again with identical fields: no update.
 	st.push(SourceEvent{Kind: AgentUpsert, Agent: ag("a1", "working")})
 	st.push(SourceEvent{Kind: AgentUpsert, Agent: ag("a1", "blocked")})
 	st.push(SourceEvent{Kind: AgentUpsert, Agent: ag("a1", "blocked")})
@@ -756,4 +753,57 @@ func TestLoopResyncIsImmediateAndNotCounted(t *testing.T) {
 	if len(got) != 0 {
 		t.Fatalf("Backoff called for Resync: %v", got)
 	}
+}
+
+func TestLoopChangedOnNonStatusFields(t *testing.T) {
+	base := ag("a1", "working")
+	mod := func(f func(*Agent)) Agent { a := base; f(&a); return a }
+	cases := []struct {
+		name string
+		next Agent
+		want []ev
+	}{
+		{"pane move", mod(func(a *Agent) { a.PaneID = "w2:p9" }), []ev{up(UpdateChanged, "a1", "", "")}},
+		{"name", mod(func(a *Agent) { a.Name = "other" }), []ev{up(UpdateChanged, "a1", "", "")}},
+		{"kind", mod(func(a *Agent) { a.Kind = "pi" }), []ev{up(UpdateChanged, "a1", "", "")}},
+		{"cwd", mod(func(a *Agent) { a.Cwd = "/x" }), []ev{up(UpdateChanged, "a1", "", "")}},
+		{"title", mod(func(a *Agent) { a.Title = "t" }), []ev{up(UpdateChanged, "a1", "", "")}},
+		{"identical", base, nil},
+		{"status and pane together is only a transition", mod(func(a *Agent) { a.Status = "blocked"; a.PaneID = "w2:p9" }),
+			[]ev{up(UpdateTransition, "a1", "working", "blocked")}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			st := newLoopStream()
+			src := &loopSource{
+				subs:  []subStep{{stream: st}},
+				snaps: []snapStep{{agents: []Agent{base}}},
+			}
+			out := make(chan Update, 16)
+			loopStart(t, "s", src, out, loopOpts())
+			loopExpect(t, out, "s", up(UpdateOnline, "", "", ""), up(UpdateAdded, "a1", "", ""))
+			st.push(SourceEvent{Kind: AgentUpsert, Agent: tc.next})
+			loopExpect(t, out, "s", tc.want...)
+			loopNone(t, out)
+		})
+	}
+}
+
+func TestLoopChangedCarriesNewStateAndSurvivesResync(t *testing.T) {
+	st1, st2 := newLoopStream(), newLoopStream()
+	moved := ag("a1", "working")
+	moved.PaneID = "w3:p1"
+	src := &loopSource{
+		subs:  []subStep{{stream: st1}, {stream: st2}},
+		snaps: []snapStep{{agents: []Agent{ag("a1", "working")}}, {agents: []Agent{moved}}},
+	}
+	out := make(chan Update, 16)
+	loopStart(t, "s", src, out, loopOpts())
+	loopExpect(t, out, "s", up(UpdateOnline, "", "", ""), up(UpdateAdded, "a1", "", ""))
+	st1.push(SourceEvent{Kind: Resync})
+	u := loopNext(t, out)
+	if u.Type != UpdateChanged || u.Agent.PaneID != "w3:p1" || u.From != "" || u.To != "" {
+		t.Fatalf("update = %+v, want changed with new pane id", u)
+	}
+	loopNone(t, out)
 }

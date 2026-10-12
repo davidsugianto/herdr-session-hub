@@ -1,0 +1,8 @@
+[1m[36mBash command[0m
+
+  [33mgo test ./...[0m
+
+[1mDo you want to proceed?[0m
+[36m❯ 1. Yes[0m
+  2. Yes, and don't ask again for go test commands in /work
+[2K  3. No, and tell Claude what to do differently (esc)]0;title

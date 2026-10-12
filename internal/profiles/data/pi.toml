@@ -1,0 +1,26 @@
+# pi profile.
+#
+# verified = false: pi never blocked during the spike, so no real blocked pi
+# screens exist (see docs/spike-notes.md). pi rarely blocks (blocks come from
+# extensions or questions), so this only reads numbered options when present.
+# There is deliberately no trust action: pi has no "always allow" option.
+# Schema: see claude.toml.
+
+name = "pi"
+verified = false
+match = ["pi"]
+
+[prompt]
+tail_lines = 40
+context_lines = 12
+question = '^.{3,}[?:]$'
+option = '^(?:[❯>›]\s*)?(\d+)[.)]\s+(\S.*)$'
+marker = "number"
+approve = '(?i)^(?:yes|allow|approve|accept|ok)\b'
+deny = '(?i)^(?:no|deny|reject|cancel)\b'
+
+[keys]
+approve = ["{approve_option}", "enter"]
+deny = ["{deny_option}", "enter"]
+interrupt = ["esc"]
+force_interrupt = ["ctrl+c"]
