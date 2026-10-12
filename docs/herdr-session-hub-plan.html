@@ -1,0 +1,770 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>herdr-session-hub plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: single reading column (~68ch) with wide breakouts for phone mockups, tables and diagrams */
+:root {
+  --bg: #f6f7f5;
+  --surface: #ffffff;
+  --sunk: #eceeea;
+  --ink: #15201e;
+  --muted: #5b6764;
+  --line: #d9ddd8;
+  --accent: #0e6b66;
+  --accent-soft: #dcefec;
+  --st-working: #2f62d8;
+  --st-waiting: #7a8582;
+  --st-blocked: #d2462c;
+  --st-done: #1f8a4c;
+  --st-working-bg: #e3ebfb;
+  --st-waiting-bg: #e9ecea;
+  --st-blocked-bg: #fbe5df;
+  --st-done-bg: #dff2e6;
+  --term-bg: #121a19;
+  --term-fg: #d6e1de;
+  --term-dim: #7d8f8b;
+  --phone-frame: #1b2523;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1514; --surface: #161e1d; --sunk: #1c2624; --ink: #e3ebe8; --muted: #93a29e; --line: #2a3533;
+    --accent: #4fc2b8; --accent-soft: #163330;
+    --st-working: #79a1ff; --st-waiting: #9aa7a3; --st-blocked: #ff8a6e; --st-done: #5fd08e;
+    --st-working-bg: #1a2742; --st-waiting-bg: #222c2a; --st-blocked-bg: #3a1f19; --st-done-bg: #15301f;
+    --term-bg: #0a0f0e; --term-fg: #d6e1de; --term-dim: #6f817d; --phone-frame: #2c3836;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1514; --surface: #161e1d; --sunk: #1c2624; --ink: #e3ebe8; --muted: #93a29e; --line: #2a3533;
+  --accent: #4fc2b8; --accent-soft: #163330;
+  --st-working: #79a1ff; --st-waiting: #9aa7a3; --st-blocked: #ff8a6e; --st-done: #5fd08e;
+  --st-working-bg: #1a2742; --st-waiting-bg: #222c2a; --st-blocked-bg: #3a1f19; --st-done-bg: #15301f;
+  --term-bg: #0a0f0e; --term-fg: #d6e1de; --term-dim: #6f817d; --phone-frame: #2c3836;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 400 16px/1.6 var(--font-body); }
+.wrap { max-width: 1040px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 80px; }
+.col { max-width: 70ch; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.6rem; font-weight: 700; }
+h3 { font-size: 1.1rem; font-weight: 600; }
+p { margin: 0; }
+a { color: var(--accent); }
+code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+code { background: var(--sunk); padding: 0.1em 0.35em; border-radius: 4px; overflow-wrap: anywhere; }
+.eyebrow { font: 500 0.75rem/1 var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.stack { display: flex; flex-direction: column; gap: 14px; }
+section { display: flex; flex-direction: column; gap: 18px; padding-block: 44px; border-top: 1px solid var(--line); }
+section > header { display: flex; flex-direction: column; gap: 6px; }
+.sec-num { font: 500 0.8rem/1 var(--font-mono); color: var(--accent); }
+ul.clean { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; }
+ul.clean li::marker { color: var(--muted); }
+
+/* hero */
+.hero { display: flex; flex-direction: column; gap: 16px; padding-bottom: 36px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font: 0.85rem/1.4 var(--font-mono); }
+.meta span { min-width: 0; overflow-wrap: anywhere; }
+.lede { font-size: 1.15rem; max-width: 62ch; }
+.pillrow { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* state pills */
+.pill { display: inline-flex; align-items: center; gap: 6px; font: 500 0.78rem/1 var(--font-mono); padding: 5px 9px; border-radius: 999px; white-space: nowrap; }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.pill.working { color: var(--st-working); background: var(--st-working-bg); }
+.pill.waiting { color: var(--st-waiting); background: var(--st-waiting-bg); }
+.pill.blocked { color: var(--st-blocked); background: var(--st-blocked-bg); }
+.pill.done { color: var(--st-done); background: var(--st-done-bg); }
+
+/* tables */
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 500 0.72rem/1.2 var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); background: var(--sunk); }
+tr:last-child td { border-bottom: 0; }
+td code { white-space: nowrap; }
+
+/* callout */
+.note { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 0.95rem; }
+.note strong { font-weight: 600; }
+
+/* two-up grid */
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.grid2 > * { min-width: 0; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+
+/* phones */
+.phones { display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; padding-block: 8px; }
+.phone-wrap { display: flex; flex-direction: column; gap: 10px; align-items: center; width: 300px; max-width: 100%; }
+.phone-cap { font: 0.8rem/1.3 var(--font-mono); color: var(--muted); text-align: center; }
+.phone { width: 100%; border-radius: 34px; background: var(--phone-frame); padding: 10px; }
+.screen { border-radius: 26px; background: var(--bg); overflow: hidden; height: 560px; display: flex; flex-direction: column; font-size: 13px; line-height: 1.4; }
+.sbar { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px 8px; }
+.sbar .brand { font: 700 1.05rem/1 var(--font-display); }
+.sbar .conn { font: 0.68rem/1 var(--font-mono); color: var(--st-done); display: flex; align-items: center; gap: 5px; }
+.sbar .conn::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.counts { display: flex; gap: 6px; padding: 0 12px 10px; flex-wrap: wrap; }
+.counts .pill { font-size: 0.68rem; padding: 4px 7px; }
+.lane-label { font: 500 0.65rem/1 var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 10px 14px 6px; }
+.agent { margin: 0 10px 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 9px 11px; display: grid; grid-template-columns: 4px 1fr auto; gap: 4px 10px; }
+.agent .stripe { grid-row: 1 / span 3; border-radius: 4px; }
+.agent .nm { font-weight: 600; }
+.sess { font: 500 0.6rem/1 var(--font-mono); padding: 2px 5px; border-radius: 4px; margin-left: 4px; vertical-align: 1px; }
+.sess.work { color: var(--st-working); background: var(--st-working-bg); }
+.sess.labs { color: var(--st-done); background: var(--st-done-bg); }
+.chip.on { color: var(--surface); background: var(--accent); border-color: transparent; }
+.filters { display: flex; gap: 5px; padding: 0 12px 8px; }
+.agent .tm { font: 0.68rem/1.4 var(--font-mono); color: var(--muted); text-align: right; }
+.agent .ln { grid-column: 2 / span 2; font: 0.7rem/1.35 var(--font-mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agent .acts { grid-column: 2 / span 2; display: flex; gap: 6px; margin-top: 4px; }
+.btn { font: 600 0.72rem/1 var(--font-body); border-radius: 8px; padding: 7px 10px; border: 1px solid var(--line); background: var(--sunk); color: var(--ink); }
+.btn.primary { background: var(--st-blocked); color: var(--surface); border-color: transparent; }
+.btn.go { background: var(--accent); color: var(--surface); border-color: transparent; }
+.stripe.working { background: var(--st-working); } .stripe.waiting { background: var(--st-waiting); }
+.stripe.blocked { background: var(--st-blocked); } .stripe.done { background: var(--st-done); }
+.tabbar { margin-top: auto; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); background: var(--surface); }
+.tabbar span { text-align: center; padding: 10px 0 14px; font: 500 0.66rem/1 var(--font-mono); color: var(--muted); }
+.tabbar span.on { color: var(--accent); }
+.detail-h { padding: 4px 14px 10px; display: flex; flex-direction: column; gap: 4px; border-bottom: 1px solid var(--line); }
+.detail-h .nm { font: 700 1rem/1.2 var(--font-display); }
+.term { flex: 1; background: var(--term-bg); color: var(--term-fg); font: 0.66rem/1.5 var(--font-mono); padding: 10px 12px; overflow: hidden; white-space: pre-wrap; }
+.term .dim { color: var(--term-dim); }
+.term .hl { color: var(--st-blocked); }
+.ask { background: var(--surface); border-top: 1px solid var(--line); padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.ask .q { font-size: 0.75rem; }
+.ask .row { display: flex; gap: 6px; flex-wrap: wrap; }
+.ask .row .btn { flex: 1; text-align: center; }
+.chips { display: flex; gap: 5px; flex-wrap: wrap; }
+.chip { font: 0.66rem/1 var(--font-mono); border: 1px solid var(--line); border-radius: 999px; padding: 5px 8px; color: var(--muted); }
+.composer { display: flex; gap: 6px; }
+.composer .in { flex: 1; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; color: var(--muted); font-size: 0.75rem; background: var(--bg); }
+.tl { padding: 6px 14px; display: flex; flex-direction: column; gap: 9px; }
+.tl-row { display: grid; grid-template-columns: 62px 1fr; gap: 8px; align-items: center; }
+.tl-row .who { font: 0.66rem/1 var(--font-mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-bar { display: flex; height: 12px; border-radius: 3px; overflow: hidden; background: var(--sunk); }
+.tl-bar i { display: block; height: 100%; }
+.tl-axis { display: flex; justify-content: space-between; font: 0.6rem/1 var(--font-mono); color: var(--muted); padding-left: 70px; }
+.feed { padding: 4px 14px; display: flex; flex-direction: column; gap: 0; }
+.feed div { display: grid; grid-template-columns: 40px 1fr; gap: 8px; font-size: 0.72rem; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.feed time { font: 0.66rem/1.5 var(--font-mono); color: var(--muted); }
+
+/* terminal block */
+.termblock { overflow-x: auto; background: var(--term-bg); color: var(--term-fg); border-radius: 10px; padding: 16px 18px; font: 0.82rem/1.5 var(--font-mono); }
+.termblock pre { margin: 0; }
+.termblock .dim { color: var(--term-dim); }
+.termblock .w { color: #79a1ff; } .termblock .b { color: #ff8a6e; } .termblock .d { color: #5fd08e; } .termblock .i { color: #9aa7a3; }
+
+/* diagram */
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+
+/* milestones */
+.ms { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.ms-item { display: grid; grid-template-columns: 56px 1fr; gap: 14px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.ms-item:last-child { border-bottom: 0; }
+.ms-item .n { font: 700 1.4rem/1 var(--font-display); color: var(--accent); font-variant-numeric: tabular-nums; }
+.ms-item .body { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.ms-item .done-when { font-size: 0.88rem; color: var(--muted); }
+
+/* questions */
+ol.q { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 10px; }
+ol.q li::marker { font-family: var(--font-mono); color: var(--accent); }
+
+@media (max-width: 520px) {
+  .wrap { padding-block: 24px 60px; padding-inline: 16px; }
+  section { padding-block: 32px; }
+  .ms-item { grid-template-columns: 36px 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+<div class="hero">
+  <span class="eyebrow">Project plan · v0.1 draft</span>
+  <h1>herdr-session-hub</h1>
+  <div class="meta"><span>Owner: David</span><span>11 Oct 2026</span><span>Target herdr: 0.9.x</span><span>Go · single binary</span><span>macOS (MacBook)</span><span>Apache-2.0</span><span><a href="https://github.com/davidsugianto/herdr-session-hub" target="_blank" rel="noopener">github.com/davidsugianto/herdr-session-hub</a></span></div>
+  <p class="lede">A small companion server that sits next to all your herdr sessions (work and personal labs) and lets you watch and steer your agents from your iPhone or a terminal. It sees which agents are working, waiting, blocked or finished, keeps a live timeline, pings you the moment one needs you, and lets you approve, reply or interrupt without walking back to your desk.</p>
+  <div class="pillrow">
+    <span class="pill working">working</span>
+    <span class="pill waiting">waiting</span>
+    <span class="pill blocked">blocked</span>
+    <span class="pill done">finished</span>
+  </div>
+</div>
+
+<section>
+  <header><span class="sec-num">01</span><h2>Goals and boundaries</h2></header>
+  <div class="grid2">
+    <div class="card">
+      <h3>In scope</h3>
+      <ul class="clean">
+        <li>Live board of every agent across all herdr sessions and workspaces, grouped by state, filterable by session</li>
+        <li>Simple timeline: a state strip per agent plus an event feed</li>
+        <li>Read output; approve, trust tool, deny, reply, send text, send keys, interrupt</li>
+        <li>Instant notifications for blocked and finished agents, with deep links</li>
+        <li>Two surfaces: mobile web app (PWA) and terminal UI</li>
+        <li>Works on localhost with zero config; remote over Tailscale with one command</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Out of scope (v1)</h3>
+      <ul class="clean">
+        <li>A full terminal emulator in the browser. Output is read as text, not a live PTY</li>
+        <li>Starting new agents or editing layouts (herdr already does this well)</li>
+        <li>Multi-user accounts and roles. One owner, one token</li>
+        <li>Hosted relay or cloud service. Everything runs on your machine</li>
+        <li>Public internet exposure. No Tailscale Funnel, no Cloudflare tunnel</li>
+        <li>Changes to herdr itself. We only use its public socket API</li>
+        <li>Discord bot and daily digest. Planned for later (section 14)</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note"><strong>Reference:</strong> <a href="https://herdr-demo.pages.dev/" target="_blank" rel="noopener">herdr-demo.pages.dev</a> (herdr-remote). We keep what works there: relay URL plus token pairing, a touch key grid (Esc, Tab, arrows, Enter), one-tap quick replies (yes, no, continue, retry), and push for blocked agents. We change the shape: it opens on settings, we open on the agent board, and we add per-agent status, a timeline and a TUI.</div>
+</section>
+
+<section>
+  <header><span class="sec-num">02</span><h2>How it talks to herdr</h2></header>
+  <div class="col stack">
+    <p>herdr exposes a local socket that speaks newline-delimited JSON (Unix domain socket on Linux and macOS, named pipe on Windows). The default path is <code>~/.config/herdr/herdr.sock</code>, and named sessions live under <code>~/.config/herdr/sessions/&lt;name&gt;/herdr.sock</code>. The hub keeps one long-lived client per session socket it finds. No herdr patches, no screen scraping of our own.</p>
+    <p>Startup follows the order herdr documents for cache clients: open the event subscription first, wait for it to start, then call <code>session.snapshot</code> on a second connection and treat later events as signals to re-read. If the server sends <code>events_lost</code>, the hub resubscribes and reconciles from a fresh snapshot instead of trusting its cache.</p>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Need</th><th>herdr method</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Bootstrap state</td><td><code>session.snapshot</code></td><td>Workspaces, tabs, panes, agents in one read</td></tr>
+        <tr><td>Live changes</td><td><code>events.subscribe</code></td><td><code>pane.agent_status_changed</code>, <code>pane.agent_detected</code>, <code>pane.created</code>, <code>pane.closed</code>, <code>pane.exited</code>, <code>pane.moved</code>, <code>pane.updated</code></td></tr>
+        <tr><td>List / inspect</td><td><code>agent.list</code>, <code>agent.get</code></td><td>Status, agent name, cwd, terminal title</td></tr>
+        <tr><td>Read output</td><td><code>pane.read</code></td><td><code>recent-unwrapped</code> for the viewer, <code>detection</code> for parsing prompts</td></tr>
+        <tr><td>Reply (agent idle)</td><td><code>agent.prompt</code></td><td>Returns <code>agent_blocked</code> if the agent is blocked, so it never types into a permission prompt by accident</td></tr>
+        <tr><td>Send raw text / keys</td><td><code>pane.send_text</code>, <code>pane.send_keys</code></td><td>Keys use herdr combos: <code>enter</code>, <code>esc</code>, <code>ctrl+c</code>, <code>shift+tab</code></td></tr>
+        <tr><td>Why is it in this state?</td><td><code>agent.explain</code></td><td>Debug panel only</td></tr>
+        <tr><td>Desktop toast echo</td><td><code>notification.show</code></td><td>Optional: mirror actions taken from the phone back into herdr</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note"><strong>First task in the spike:</strong> run <code>herdr api schema --json</code> and generate Go types from it, so request and event shapes come from the installed binary instead of from docs.</div>
+  <div class="col stack">
+    <p><strong>Integrations for your agents.</strong> herdr's docs say omp state requires its integration, pi's integration reports state directly, and Claude Code is read from the screen (its integration adds session resume after a herdr restart). <code>hub doctor</code> checks all three and offers to run:</p>
+  </div>
+  <div class="termblock"><pre>herdr integration install claude
+herdr integration install pi
+herdr integration install omp</pre></div>
+  <h3>Multiple sessions</h3>
+  <div class="col stack">
+    <p>You run separate herdr sessions for work and personal labs, so session is a first-class part of the model, not an afterthought.</p>
+  </div>
+  <ul class="clean col">
+    <li><strong>Discovery.</strong> On start the hub connects to the default socket and every <code>~/.config/herdr/sessions/*/herdr.sock</code>, and watches that folder, so a session started later with <code>herdr --session labs</code> appears on the board within a second.</li>
+    <li><strong>Isolation.</strong> Each session has its own subscribe, snapshot and reconnect loop. If the labs server stops, its agents show as offline and work keeps updating.</li>
+    <li><strong>One board, one app, one notification stream.</strong> Every agent carries a session tag and color. The iPhone app and TUI show all sessions by default, with a session filter.</li>
+    <li><strong>Per-session rules.</strong> Mute or set quiet hours per session, e.g. silence work on weekends while labs still notifies.</li>
+  </ul>
+  <div class="termblock"><pre><span class="dim"># ~/.config/herdr-session-hub/config.toml  (all optional)</span>
+[discovery]
+auto = true                  <span class="dim"># default socket + sessions/*</span>
+
+[[session]]
+name  = "work"               <span class="dim"># matches herdr --session work</span>
+color = "blue"
+quiet_hours = "Sat-Sun"      <span class="dim"># blocked still notifies unless muted</span>
+
+[[session]]
+name  = "labs"
+color = "green"
+
+[mac]
+keep_awake = "while-working" <span class="dim"># off | while-working | always</span></pre></div>
+</section>
+
+<section>
+  <header><span class="sec-num">03</span><h2>State model</h2></header>
+  <div class="col"><p>herdr reports <code>idle</code>, <code>working</code>, <code>blocked</code>, <code>done</code> and <code>unknown</code>, where <code>done</code> means idle and not yet seen. The hub maps those into the four words you asked for and adds one rule: once you open a finished agent anywhere (phone or TUI), it becomes waiting.</p></div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Hub state</th><th>From herdr</th><th>Meaning</th><th>Notify?</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill blocked">blocked</span></td><td><code>blocked</code></td><td>Needs a permission answer or input to continue</td><td>Yes, immediately, high priority</td></tr>
+        <tr><td><span class="pill done">finished</span></td><td><code>done</code></td><td>Turn ended, you have not looked yet</td><td>Yes, immediately</td></tr>
+        <tr><td><span class="pill working">working</span></td><td><code>working</code></td><td>Busy</td><td>No</td></tr>
+        <tr><td><span class="pill waiting">waiting</span></td><td><code>idle</code>, or <code>done</code> after you viewed it</td><td>Ready for the next prompt</td><td>No</td></tr>
+        <tr><td><span class="pill waiting">unknown</span></td><td><code>unknown</code></td><td>Plain shell or undetected agent</td><td>No, hidden by default</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <ul class="clean col">
+    <li><strong>Stable identity.</strong> Pane ids like <code>w1:p2</code> change when a pane moves across workspaces, so the hub keys agents by <code>session/terminal_id</code> (for example <code>labs/term_abc123</code>) and keeps the pane id only as an address. Two sessions can both have a <code>w1:p1</code>; the session prefix keeps them apart.</li>
+    <li><strong>Timeline storage.</strong> Every state transition is a row in SQLite (<code>session, agent, from, to, at, source</code>). The strip view and the daily digest are both queries over that table. 14 days kept by default.</li>
+    <li><strong>Flap guard.</strong> A blocked to working to blocked bounce inside 3 seconds counts as one blocked episode, so one prompt gives one notification.</li>
+  </ul>
+</section>
+
+<section>
+  <header><span class="sec-num">04</span><h2>Architecture</h2></header>
+  <div class="col"><p>One Go binary, <code>hub</code>, with subcommands. The server holds the only herdr connections (one per session); every surface is a client of the hub API, which keeps behavior identical across phone and terminal. Notifications go through a small sink interface (Web Push in v1), so a Discord bot can be added later as one more sink and one more API client, with no changes to the core.</p></div>
+  <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+  H1[(herdr session<br/>work)] <-- NDJSON --> C[session clients<br/>one per socket]
+  H2[(herdr session<br/>labs)] <-- NDJSON --> C
+  C --> S[state engine<br/>status map, flap guard]
+  S --> DB[(SQLite<br/>timeline, push subs, audit)]
+  S --> API[HTTP API<br/>REST + SSE]
+  S --> N[notifier]
+  API --> W[Mobile PWA]
+  API --> T[TUI]
+  N --> WP[Web Push]
+  N -. later .-> D[Discord bot<br/>not in v1]
+  W -. tailscale serve .- X((iPhone<br/>on tailnet))
+</pre>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Part</th><th>Choice</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Server</td><td>Go 1.23+, <code>net/http</code>, SSE</td><td>Single static binary; SSE survives tunnels and reconnects with <code>Last-Event-ID</code></td></tr>
+        <tr><td>Storage</td><td><code>modernc.org/sqlite</code></td><td>Pure Go, no cgo, easy cross-compile</td></tr>
+        <tr><td>Web app</td><td>Preact + Vite, embedded with <code>go:embed</code></td><td>Small bundle (target under 60 KB gzipped), installable PWA, service worker for push</td></tr>
+        <tr><td>Push</td><td>Web Push with VAPID (<code>webpush-go</code>)</td><td>No third-party push service; keys generated on first run</td></tr>
+        <tr><td>TUI</td><td>Bubble Tea + Lip Gloss</td><td>Fast, keyboard-first, same API as the phone</td></tr>
+        <tr><td>Pairing</td><td>QR in terminal (<code>qrterminal</code>)</td><td>Scan once, phone is paired</td></tr>
+        <tr><td>Remote</td><td>Tailscale <code>serve</code></td><td>Private HTTPS URL with a real certificate, reachable only from your tailnet</td></tr>
+        <tr><td>Licence</td><td>Apache-2.0</td><td>See section 13</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <header><span class="sec-num">05</span><h2>Mobile web app</h2></header>
+  <div class="col"><p>Three tabs plus Settings. Attention comes first: blocked agents sit at the top with their actions inline, so the common case (approve and move on) is one tap from the board.</p></div>
+  <div class="phones">
+    <div class="phone-wrap">
+      <div class="phone"><div class="screen">
+        <div class="sbar"><span class="brand">herd</span><span class="conn">live · 2 sessions</span></div>
+        <div class="filters"><span class="chip on">All 6</span><span class="chip">work 2</span><span class="chip">labs 4</span></div>
+        <div class="counts"><span class="pill blocked">1 blocked</span><span class="pill done">1 finished</span><span class="pill working">2 working</span><span class="pill waiting">2 waiting</span></div>
+        <div class="lane-label">Needs you</div>
+        <div class="agent"><span class="stripe blocked"></span><span class="nm">claude · upsera<span class="sess labs">labs</span></span><span class="tm">2m</span><span class="ln">Allow Bash(go test ./...)?</span><div class="acts"><span class="btn primary">Approve</span><span class="btn">Trust</span><span class="btn">Open</span></div></div>
+        <div class="agent"><span class="stripe done"></span><span class="nm">pi · argocd<span class="sess work">work</span></span><span class="tm">just now</span><span class="ln">Done. 4 files changed, tests pass.</span></div>
+        <div class="lane-label">Working</div>
+        <div class="agent"><span class="stripe working"></span><span class="nm">claude · k8s-agent<span class="sess labs">labs</span></span><span class="tm">14m</span><span class="ln">Reading internal/triage/rules.go</span></div>
+        <div class="agent"><span class="stripe working"></span><span class="nm">omp · cicd<span class="sess work">work</span></span><span class="tm">3m</span><span class="ln">Running gitlab-ci lint</span></div>
+        <div class="lane-label">Waiting</div>
+        <div class="agent"><span class="stripe waiting"></span><span class="nm">claude · portfolio<span class="sess labs">labs</span></span><span class="tm">1h</span><span class="ln">Ready for next prompt</span></div>
+        <div class="tabbar"><span class="on">Board</span><span>Timeline</span><span>Keys</span><span>Settings</span></div>
+      </div></div>
+      <span class="phone-cap">Board · all sessions, sorted by attention, then most recent change</span>
+    </div>
+
+    <div class="phone-wrap">
+      <div class="phone"><div class="screen">
+        <div class="sbar"><span class="brand">‹ upsera</span><span class="pill blocked" style="font-size:0.66rem;padding:4px 7px">blocked 2m</span></div>
+        <div class="detail-h"><span class="nm">claude · w2:p1<span class="sess labs">labs</span></span><span class="eyebrow" style="font-size:0.62rem">~/code/upsera · tab: api</span></div>
+<div class="term"><span class="dim">● Edited internal/monitor/http.go (+42 -8)
+● Edited internal/monitor/http_test.go</span>
+
+I'll run the test suite to confirm the
+timeout change works.
+
+<span class="hl">Bash command</span>
+  go test ./...
+
+Do you want to proceed?
+<span class="hl">❯ 1. Yes</span>
+  2. Yes, and don't ask again for go test
+  3. No, and tell Claude what to do</div>
+        <div class="ask">
+          <span class="q">Allow <span class="mono">Bash(go test ./...)</span>?</span>
+          <div class="row"><span class="btn primary">Approve</span><span class="btn">Trust tool</span><span class="btn">Deny…</span></div>
+          <div class="chips"><span class="chip">Esc</span><span class="chip">↑</span><span class="chip">↓</span><span class="chip">Enter</span><span class="chip">Interrupt</span></div>
+        </div>
+      </div></div>
+      <span class="phone-cap">Agent detail · prompt parsed into buttons</span>
+    </div>
+
+    <div class="phone-wrap">
+      <div class="phone"><div class="screen">
+        <div class="sbar"><span class="brand">timeline</span><span class="conn">last 2h</span></div>
+        <div class="tl">
+          <div class="tl-row"><span class="who">upsera</span><div class="tl-bar"><i style="width:30%;background:var(--st-working)"></i><i style="width:12%;background:var(--st-waiting)"></i><i style="width:46%;background:var(--st-working)"></i><i style="width:12%;background:var(--st-blocked)"></i></div></div>
+          <div class="tl-row"><span class="who">argocd</span><div class="tl-bar"><i style="width:8%;background:var(--st-waiting)"></i><i style="width:88%;background:var(--st-working)"></i><i style="width:4%;background:var(--st-done)"></i></div></div>
+          <div class="tl-row"><span class="who">k8s-agent</span><div class="tl-bar"><i style="width:40%;background:var(--st-waiting)"></i><i style="width:6%;background:var(--st-blocked)"></i><i style="width:54%;background:var(--st-working)"></i></div></div>
+          <div class="tl-row"><span class="who">cicd</span><div class="tl-bar"><i style="width:70%;background:var(--st-waiting)"></i><i style="width:30%;background:var(--st-working)"></i></div></div>
+          <div class="tl-row"><span class="who">portfolio</span><div class="tl-bar"><i style="width:35%;background:var(--st-working)"></i><i style="width:65%;background:var(--st-waiting)"></i></div></div>
+          <div class="tl-axis"><span>21:10</span><span>22:10</span><span>23:10</span></div>
+        </div>
+        <div class="lane-label">Events</div>
+        <div class="feed">
+          <div><time>23:08</time><span>upsera became <b>blocked</b>: Bash(go test)</span></div>
+          <div><time>23:07</time><span>argocd <b>finished</b> after 1h 46m</span></div>
+          <div><time>23:01</time><span>You approved k8s-agent from the TUI</span></div>
+          <div><time>22:52</time><span>cicd started working</span></div>
+          <div><time>22:40</time><span>You replied to upsera: "use 5s timeout"</span></div>
+        </div>
+        <div class="tabbar"><span>Board</span><span class="on">Timeline</span><span>Keys</span><span>Settings</span></div>
+      </div></div>
+      <span class="phone-cap">Timeline · state strips plus feed, includes your own actions</span>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3>Output viewer</h3>
+      <p>Pulls the last 300 lines with <code>pane.read --source recent-unwrapped</code>, strips control sequences server side, keeps basic ANSI colors, and refreshes on <code>pane.updated</code> or every 2 s while open. Follow-tail by default; scrolling up pauses it. Find-in-output and a copy button.</p>
+    </div>
+    <div class="card">
+      <h3>Reply sheet</h3>
+      <p>Composer with quick replies taken from the reference app (yes, no, continue, retry, commit and push) plus your own presets. Sends through <code>agent.prompt</code>; if the agent is blocked it switches to the approval buttons instead of typing into the prompt.</p>
+    </div>
+    <div class="card">
+      <h3>Keys tab</h3>
+      <p>The reference key grid: Esc, Tab, Shift+Tab, arrows, Enter, Ctrl+C, PgUp, PgDn, plus a 1 to 9 row for numbered menus. Targets the agent you last opened.</p>
+    </div>
+    <div class="card">
+      <h3>Feel</h3>
+      <p>System font stack in the app for speed, state colors carry meaning everywhere, large tap targets (44 px), haptic tick on actions where supported, offline banner when SSE drops, light and dark following the system.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <header><span class="sec-num">06</span><h2>Actions</h2></header>
+  <div class="col"><p>herdr is agent-agnostic, so approve and trust differ per agent. The hub ships small <strong>agent profiles</strong> (TOML) that describe how to read a prompt and which keys answer it. A profile that cannot parse the current screen falls back to the raw key grid, so nothing is ever unanswerable from the phone.</p></div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Action</th><th>What the hub sends</th><th>Guard</th></tr></thead>
+      <tbody>
+        <tr><td>Approve</td><td>Profile keys, e.g. Claude Code: <code>1</code>, <code>enter</code></td><td>Only when state is blocked and the parsed prompt still matches the one you saw (hash check)</td></tr>
+        <tr><td>Trust tool</td><td>Profile "always allow" option, e.g. <code>2</code>, <code>enter</code></td><td>Same as approve; shows the exact rule being trusted</td></tr>
+        <tr><td>Deny with note</td><td>Deny option, then your text</td><td>Same as approve</td></tr>
+        <tr><td>Reply</td><td><code>agent.prompt</code> with text</td><td>herdr refuses if blocked</td></tr>
+        <tr><td>Send text</td><td><code>pane.send_text</code>, optional <code>enter</code></td><td>Raw, for shells and unknown agents</td></tr>
+        <tr><td>Send keys</td><td><code>pane.send_keys</code></td><td>Allowlist of key combos</td></tr>
+        <tr><td>Interrupt</td><td>Profile key, <code>esc</code> for all three, <code>ctrl+c</code> as force stop</td><td>Hold-to-confirm in the app; confirm prompt in the TUI</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>v1 profiles: your three agents</h3>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Agent</th><th>State in herdr</th><th>What "blocked" looks like</th><th>Approve / Trust</th><th>Interrupt</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Claude Code</strong></td><td>Screen rules</td><td>Numbered tool permission menu</td><td><code>1</code> / <code>2</code>, then <code>enter</code></td><td><code>esc</code></td></tr>
+        <tr><td><strong>pi</strong></td><td>Integration reports state</td><td>Rare: pi does not ask for tool permission out of the box, so blocks come from extensions or questions</td><td>Parsed options or reply; Trust hidden</td><td><code>esc</code></td></tr>
+        <tr><td><strong>omp</strong></td><td>Needs the <code>omp</code> integration</td><td><code>ask</code> option picker, or a permission prompt on destructive tools</td><td>Pick the option; "answer once and forget" maps to Trust</td><td><code>esc</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note"><strong>Stale-prompt protection:</strong> every approval card carries a short hash of the parsed prompt. If the screen changed between the notification and your tap, the hub rejects the action and shows the new prompt instead of pressing <code>1</code> on something else.</div>
+  <div class="col"><p>Every action goes into an audit table (who, surface, agent, action, payload, result) and shows up in the timeline feed. Profiles for v1: Claude Code, pi, omp, plus a generic fallback. For pi the main value is finished alerts and quick replies rather than approvals. Exact prompt strings and keys for all three get verified against real sessions in the spike, since they change between agent versions.</p></div>
+</section>
+
+<section>
+  <header><span class="sec-num">07</span><h2>Notifications</h2></header>
+  <div class="col"><p>Two events notify: an agent becomes blocked, or an agent finishes. Both fire as soon as the herdr event arrives (target under 1 s from herdr to phone on Web Push). Nothing else notifies unless you add a rule.</p></div>
+  <h3>On your iPhone</h3>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Channel</th><th>Open output</th><th>Approve</th><th>Type a reply</th></tr></thead>
+      <tbody>
+        <tr><td>Web Push to the Home Screen app</td><td>Tap opens agent detail, scrolled to the end</td><td>No buttons inside iOS web notifications; tap, then one tap on Approve (already under your thumb)</td><td>Tap opens the reply sheet with the keyboard up</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note"><strong>Honest limit:</strong> iOS does not let a web app put buttons or a text field inside its notification. The plan makes tap-to-action as short as possible instead: notification, tap, Approve. Two taps, no typing, no hunting for the agent.</div>
+  <h3>iPhone setup, once</h3>
+  <ol class="q col">
+    <li>Install Tailscale on the iPhone and sign in to the same tailnet as your computer. Run <code>hub tunnel</code> on the computer.</li>
+    <li>Scan the QR with the Camera, which opens the hub in Safari and pairs the device.</li>
+    <li>Share, then Add to Home Screen. Web Push only works for Home Screen web apps (iOS 16.4 or later).</li>
+    <li>Open it from the Home Screen and tap <strong>Enable notifications</strong>. iOS only asks after a tap, so the app shows this button on first launch.</li>
+  </ol>
+  <ul class="clean col">
+    <li>Web Push needs HTTPS, and the hub runs on your computer, so the iPhone always connects through Tailscale, even at your desk. Keep the Tailscale VPN on for the phone to reach the app; push notifications themselves arrive through Apple either way.</li>
+    <li>iOS suspends the app in the background, so the live stream stops. Push is what reaches you; when you open the app it reloads state from a fresh snapshot.</li>
+    <li>The Home Screen icon shows a badge with the number of agents that need you (blocked plus finished and unread).</li>
+    <li>If the app is open in front of you, it shows an in-app banner instead of a system notification.</li>
+    <li>Quiet hours with a "blocked still notifies" switch. Mute per agent or per session.</li>
+    <li>Notification title starts with the session, e.g. <strong>[labs] claude · upsera is blocked</strong>, then the parsed question or the last output line, and a deep link to <code>/a/&lt;session&gt;/&lt;terminal_id&gt;</code>.</li>
+  </ul>
+</section>
+
+<section>
+  <header><span class="sec-num">08</span><h2>Local and remote access</h2></header>
+  <div class="grid2">
+    <div class="card">
+      <span class="eyebrow">At your desk</span>
+      <h3>Zero setup</h3>
+      <p><code>hub serve</code> finds every herdr session socket, binds <code>127.0.0.1:7878</code>, and generates a token and VAPID keys on first run. Open it in a browser on the same machine, or run <code>hub tui</code>.</p>
+    </div>
+    <div class="card">
+      <span class="eyebrow">iPhone, anywhere</span>
+      <h3>Tailscale, one command</h3>
+      <p><code>hub tunnel</code> runs <code>tailscale serve</code> in the background for port 7878, which gives a private HTTPS URL like <code>https://macbook.&lt;tailnet&gt;.ts.net</code> with a real certificate. Only devices on your tailnet can reach it. It prints a pairing QR. <code>hub tunnel off</code> removes the serve config.</p>
+    </div>
+  </div>
+  <div class="termblock"><pre><span class="dim">$</span> hub serve
+<span class="dim">session</span>   work   ~/.config/herdr/sessions/work/herdr.sock  connected (2 agents)
+<span class="dim">session</span>   labs   ~/.config/herdr/sessions/labs/herdr.sock  connected (4 agents)
+<span class="dim">web</span>       http://127.0.0.1:7878
+<span class="dim">iphone</span>    run `hub tunnel` to pair
+<span class="dim">$</span> hub tunnel
+<span class="dim">tailscale</span> serving 127.0.0.1:7878
+<span class="dim">remote</span>    https://macbook.tail1234.ts.net  (tailnet only)
+<span class="dim">pair</span>      scan with your iPhone camera ▼
+          █▀▀▀▀▀█ ▄▀▄ █▀▀▀▀▀█
+          █ ███ █ ▀█▄ █ ███ █
+          ...</pre></div>
+  <h3>On the MacBook</h3>
+  <ul class="clean col">
+    <li><strong>Sleep is the big one.</strong> When the Mac sleeps, herdr, your agents and the hub all pause, and the iPhone app shows "MacBook offline since 23:40". By default the hub holds a macOS power assertion (the same mechanism as <code>caffeinate -i</code>) only while at least one agent is working, so the Mac does not idle-sleep mid-task and can sleep normally once everything is done.</li>
+    <li>Closing the lid on battery still sleeps the Mac; no app can stop that. Keep it open, or on power with an external display in clamshell mode, when you plan to steer agents from your phone.</li>
+    <li><strong>Starts at login.</strong> <code>hub service install</code> writes a LaunchAgent in <code>~/Library/LaunchAgents</code>, so the hub starts at login and restarts if it crashes. The herdr plugin autostart remains as an alternative.</li>
+    <li><strong>Tailscale app.</strong> <code>hub tunnel</code> uses the <code>tailscale</code> CLI from your PATH (Homebrew) or, if missing, the one inside the Tailscale app bundle, so it works with either install.</li>
+  </ul>
+  <h3>Security</h3>
+  <ul class="clean col">
+    <li>Sending text to an agent can run arbitrary commands on your machine, so the hub treats its token like an SSH key.</li>
+    <li>Pairing uses a one-time code in the QR that exchanges for a long-lived token stored in an HttpOnly, Secure cookie. Revoke devices from Settings or <code>hub devices revoke</code>.</li>
+    <li><strong>Tailscale identity as a second check.</strong> <code>tailscale serve</code> adds a <code>Tailscale-User-Login</code> header to each request and strips any spoofed copy. The hub only accepts remote requests whose login matches yours, on top of the device token.</li>
+    <li>Tailscale Funnel is never used, so the hub is never on the public internet. Prerequisite: HTTPS certificates enabled for your tailnet (the Tailscale CLI asks the first time).</li>
+    <li>Optional read-only token for sharing a view without action rights.</li>
+    <li>Rate limit on action endpoints, CSRF check on POST, strict CSP, no listening on <code>0.0.0.0</code> unless you pass <code>--listen</code>.</li>
+  </ul>
+</section>
+
+<section>
+  <header><span class="sec-num">09</span><h2>Terminal view</h2></header>
+  <div class="col"><p><code>hub tui</code> connects to a local or remote hub (so it also works over Tailscale from another laptop). Same board, same actions, keyboard only. <code>tab</code> cycles the session filter.</p></div>
+  <div class="termblock"><pre> herd · [all] work labs                   <span class="b">1 blocked</span>  <span class="d">1 finished</span>  <span class="w">2 working</span>  <span class="i">2 waiting</span>
+ ──────────────────────────────────────────────────────────────────────────────────
+ <span class="b">▌ blocked </span>  labs  claude    upsera     2m   Allow Bash(go test ./...)?
+ <span class="d">▌ finished</span>  work  pi        argocd     0m   Done. 4 files changed, tests pass.
+ <span class="w">▌ working </span>  labs  claude    k8s-agent 14m   Reading internal/triage/rules.go
+ <span class="w">▌ working </span>  work  omp       cicd       3m   Running gitlab-ci lint
+ <span class="i">▌ waiting </span>  labs  claude    portfolio  1h   Ready for next prompt
+ ──────────────────────────────────────────────────────────────────────────────────
+ <span class="dim">enter</span> open  <span class="dim">a</span> approve  <span class="dim">t</span> trust  <span class="dim">r</span> reply  <span class="dim">s</span> send  <span class="dim">i</span> interrupt  <span class="dim">tab</span> session  <span class="dim">l</span> timeline  <span class="dim">q</span> quit</pre></div>
+</section>
+
+
+<section>
+  <header><span class="sec-num">10</span><h2>API and repo layout</h2></header>
+  <div class="grid2">
+    <div class="termblock"><pre><span class="dim"># {id} = session/terminal_id</span>
+<span class="dim"># read</span>
+GET  /api/sessions
+GET  /api/agents?session=labs
+GET  /api/agents/{id}
+GET  /api/agents/{id}/output?lines=300
+GET  /api/timeline?since=2h
+GET  /api/stream            <span class="dim"># SSE</span>
+
+<span class="dim"># act</span>
+POST /api/agents/{id}/approve  {prompt_hash}
+POST /api/agents/{id}/trust    {prompt_hash}
+POST /api/agents/{id}/deny     {prompt_hash, note}
+POST /api/agents/{id}/reply    {text}
+POST /api/agents/{id}/send     {text, enter}
+POST /api/agents/{id}/keys     {keys: []}
+POST /api/agents/{id}/interrupt
+POST /api/agents/{id}/seen
+
+<span class="dim"># device</span>
+POST /api/pair            {code}
+POST /api/push/subscribe  {subscription}</pre></div>
+    <div class="termblock"><pre>herdr-session-hub/
+  cmd/hub/            <span class="dim">serve, tui, doctor,</span>
+                      <span class="dim">tunnel, pair, devices</span>
+  internal/herdr/     <span class="dim">socket client, gen types</span>
+  internal/sessions/  <span class="dim">discovery, per-session loop</span>
+  internal/state/     <span class="dim">map, flap guard, seen</span>
+  internal/store/     <span class="dim">sqlite: events, audit</span>
+  internal/profiles/  <span class="dim">prompt parse + keys</span>
+  internal/api/       <span class="dim">REST, SSE, auth</span>
+  internal/notify/    <span class="dim">sink interface, webpush</span>
+  internal/tui/       <span class="dim">bubbletea</span>
+  internal/tunnel/    <span class="dim">tailscale serve</span>
+  internal/macos/     <span class="dim">keep-awake, launchd</span>
+  profiles/*.toml     <span class="dim">claude, pi, omp</span>
+  web/                <span class="dim">preact pwa + sw.js</span>
+  herdr-plugin.toml   <span class="dim">optional autostart</span>
+  LICENSE             <span class="dim">Apache-2.0</span>
+  NOTICE</pre></div>
+  </div>
+  <div class="col"><p>Config lives in <code>~/.config/herdr-session-hub/config.toml</code>, data in <code>~/.local/share/herdr-session-hub/</code>. To start automatically, use <code>hub service install</code> (LaunchAgent) or the <code>herdr-plugin.toml</code> startup hook, so there is nothing to remember after setup.</p></div>
+</section>
+
+<section>
+  <header><span class="sec-num">11</span><h2>Milestones</h2></header>
+  <div class="ms">
+    <div class="ms-item"><span class="n">0</span><div class="body"><h3>Spike</h3><p>Generate types from <code>herdr api schema --json</code>. Socket client with subscribe, snapshot, reconnect and <code>events_lost</code> recovery, running one loop per discovered session (start with your work and labs sessions). Install the claude, pi and omp integrations. Capture real blocked screens from Claude Code and omp, and see what pi shows when it needs input.</p><p class="done-when">Done when: a CLI prints live state changes for every agent in both sessions, and stopping one session does not affect the other.</p></div></div>
+    <div class="ms-item"><span class="n">1</span><div class="body"><h3>Hub core</h3><p>State engine keyed by session, SQLite timeline and audit, REST and SSE, token auth, QR pairing, agent profiles with approve, trust, reply, send, keys, interrupt.</p><p class="done-when">Done when: every action works through <code>curl</code> against a real session.</p></div></div>
+    <div class="ms-item"><span class="n">2</span><div class="body"><h3>Mobile PWA</h3><p>Board with session filter, agent detail with output viewer and approval card, reply sheet, keys tab, timeline, settings. Installable to the iPhone Home Screen, safe-area aware, light and dark.</p><p class="done-when">Done when: you can run a full blocked to approve to finished loop from the phone on localhost.</p></div></div>
+    <div class="ms-item"><span class="n">3</span><div class="body"><h3>Notifications and remote</h3><p>VAPID Web Push for iOS Home Screen apps, deep links, app icon badge, quiet hours and mute per agent or session. <code>hub tunnel</code> on Tailscale serve, with the identity header check. Keep-awake while agents work.</p><p class="done-when">Done when: a blocked agent reaches your iPhone lock screen over Tailscale in under 2 s, and notification, tap, Approve unblocks it.</p></div></div>
+    <div class="ms-item"><span class="n">4</span><div class="body"><h3>Terminal view</h3><p>Bubble Tea board, detail, actions and timeline over the same API, local or remote.</p><p class="done-when">Done when: the TUI can do everything the phone can, keyboard only.</p></div></div>
+    <div class="ms-item"><span class="n">5</span><div class="body"><h3>Packaging</h3><p>GoReleaser builds with macOS arm64 first (Linux as a bonus), Homebrew tap (<code>brew install davidsugianto/tap/herdr-session-hub</code>), <code>hub service install</code> LaunchAgent, Apache-2.0 LICENSE and SPDX headers, herdr plugin manifest, README with a 60 second quick start, demo GIF.</p><p class="done-when">Done when: your MacBook goes from <code>brew install</code> to paired iPhone in one command plus one scan, and the hub comes back by itself after a reboot.</p></div></div>
+  </div>
+</section>
+
+<section>
+  <header><span class="sec-num">12</span><h2>Risks</h2></header>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Risk</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td>Agent prompt text changes between versions and breaks approve parsing</td><td>Profiles are data files, versioned and testable against captured screens; raw key grid always available</td></tr>
+        <tr><td>herdr socket API changes (pre-1.0)</td><td>Generated types, ignore unknown fields, startup check of advertised methods with a clear message</td></tr>
+        <tr><td>iOS Web Push limits: Home Screen only, no buttons or text field in the notification, app suspended in background</td><td>Two-tap approve from the notification, snapshot reload on open, the later Discord bot would add buttons and a typed reply</td></tr>
+        <tr><td>pi and omp prompts are less documented than Claude Code's</td><td>Lean on their herdr integrations for state; build their profiles from captured screens in the spike</td></tr>
+        <tr><td>Remote control of a dev machine</td><td>Localhost bind, Tailscale only (no Funnel), identity header check, device tokens, audit log, rate limit, read-only mode</td></tr>
+        <tr><td>MacBook sleeps while you are away and agents stop</td><td>Keep-awake while any agent works, offline banner with last-seen time on the iPhone, clear guidance on lid-closed behavior</td></tr>
+        <tr><td>One herdr session restarts or crashes</td><td>Separate loop per session, session marked offline on the board, automatic reconnect and fresh snapshot</td></tr>
+        <tr><td>Acting on the wrong session's agent</td><td>Ids always include the session; session tag shown on every card, notification and confirm prompt</td></tr>
+        <tr><td>Notification noise from flapping states</td><td>3 s flap guard, one notification per episode, per-agent mute</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <header><span class="sec-num">13</span><h2>Decisions</h2></header>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Decided</th><th>Answer</th></tr></thead>
+      <tbody>
+        <tr><td>Agents for v1</td><td>Claude Code, pi, omp</td></tr>
+        <tr><td>Phone</td><td>iPhone (Home Screen web app)</td></tr>
+        <tr><td>Discord bot</td><td>Later, not in v1</td></tr>
+        <tr><td>Repo</td><td><a href="https://github.com/davidsugianto/herdr-session-hub" target="_blank" rel="noopener">davidsugianto/herdr-session-hub</a></td></tr>
+        <tr><td>Remote access</td><td>Tailscale serve only</td></tr>
+        <tr><td>herdr sessions</td><td>Several (work, labs), all on one board</td></tr>
+        <tr><td>Machine</td><td>One MacBook runs herdr and the hub; no other machines</td></tr>
+        <tr><td>Licence</td><td>Apache-2.0</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="col stack">
+    <p><strong>Why Apache-2.0.</strong> It is permissive like MIT, so anyone can use, fork and embed the hub, and it adds an explicit patent grant and a clear contribution clause. It is also the licence most of the ecosystem you work in uses (Kubernetes, Prometheus, OpenTelemetry), which makes outside contributions easy. herdr itself is AGPL-3.0, but the hub contains none of herdr's code and only talks to it over its socket and CLI, so the two licences do not mix. Not legal advice; this is the common reading for separate programs that talk over an API.</p>
+  </div>
+  <div class="note"><strong>All decisions made.</strong> The plan is ready to build, starting with milestone 0 in <code>davidsugianto/herdr-session-hub</code>.</div>
+</section>
+
+
+<section>
+  <header><span class="sec-num">14</span><span class="eyebrow">Not in v1</span><h2>Later: Discord bot</h2></header>
+  <div class="note"><strong>Deferred.</strong> v1 ships with the iPhone app and the TUI only. This section keeps the design so the bot can be added later without reworking the hub: it would be one more notification sink plus one more client of the same API. Worth adding when you want buttons and a typed reply on notifications (which iOS web apps cannot do) or a reach that does not need the tunnel, since the bot connects outward to Discord.</div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Command</th><th>Does</th></tr></thead>
+      <tbody>
+        <tr><td><code>/agents [state]</code></td><td>List agents with state and time in state; buttons to open each</td></tr>
+        <tr><td><code>/read agent [lines]</code></td><td>Last N lines (default 40) in a code block; longer output attached as a .txt file</td></tr>
+        <tr><td><code>/reply agent text</code></td><td>Reply through <code>agent.prompt</code></td></tr>
+        <tr><td><code>/send agent text [enter]</code></td><td>Raw text to the pane</td></tr>
+        <tr><td><code>/keys agent keys</code></td><td>e.g. <code>esc</code>, <code>shift+tab</code></td></tr>
+        <tr><td><code>/approve agent</code> · <code>/trust agent</code></td><td>Answer a blocked prompt</td></tr>
+        <tr><td><code>/interrupt agent</code></td><td>Asks for a confirm button first</td></tr>
+        <tr><td><code>/digest [day]</code></td><td>Show a digest now; scheduled one posts daily at your chosen time (Asia/Jakarta)</td></tr>
+        <tr><td><code>/mute agent [duration]</code></td><td>Silence notifications for one agent</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3>Attention message</h3>
+      <p>When an agent blocks, the bot posts the agent, the parsed question and the last few lines, with buttons: <strong>Approve</strong>, <strong>Trust</strong>, <strong>Reply</strong> (modal), <strong>Read output</strong>, <strong>Interrupt</strong>. After you act, the message edits itself to show who answered and from where.</p>
+    </div>
+    <div class="card">
+      <h3>Daily digest</h3>
+      <p>Per agent: time working, number of blocked episodes and median time to unblock, turns finished, last output line. Totals for the day, the longest wait you caused, and anything still blocked or finished but unread.</p>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<!--claude-mermaid-runtime-begin:3477-->
+<style>.mermaid-diagram{margin-block:4px}.mermaid-diagram svg{display:block;margin:0 auto;max-width:100%;height:auto}</style>
+<script src="/_runtime/mermaid-11.16.1.min.js"></script>
+<script>(function(){
+var CFG={"palettes":{"light":{"surface":"#f4efe4","text":"#42392e","line":"#8a7f6d","border":"#7a6c52","bg":"#fffdf8"},"dark":{"surface":"#262b34","text":"#f2f3f5","line":"#a8adb8","border":"#9aa4b8","bg":"#1f232b"}}};
+if(typeof mermaid==='undefined')return;
+var pres=Array.prototype.slice.call(document.querySelectorAll('pre.mermaid')).filter(function(p){if(p.hasAttribute('data-claude-mermaid-claimed'))return false;p.setAttribute('data-claude-mermaid-claimed','1');return true;});
+if(!pres.length)return;
+var mq=window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)'):null;
+var root=document.documentElement;
+var items=pres.map(function(pre){
+var mount=document.createElement('div');mount.className='mermaid-diagram';
+return {pre:pre,mount:mount,src:pre.textContent||''};
+});
+var seq=0;
+var renderGen=0;
+var lastKey='';
+function pageBg(fallback){
+var els=[document.body,document.documentElement];
+for(var i=0;i<els.length;i++){
+var c=els[i]&&getComputedStyle(els[i]).backgroundColor;
+if(c&&c!=='transparent'&&c!=='rgba(0, 0, 0, 0)')return c;
+}
+return fallback;
+}
+function render(){
+var theme=root.getAttribute('data-theme');
+var dark=theme==='dark'||(!!(mq&&mq.matches)&&theme!=='light');
+var pal=dark?CFG.palettes.dark:CFG.palettes.light;
+var bg=pageBg(pal.bg);
+var key=(dark?'d':'l')+'|'+bg;
+if(key===lastKey)return;
+lastKey=key;
+var gen=++renderGen;
+var font=getComputedStyle(document.body).fontFamily||'sans-serif';
+var nat={useMaxWidth:false};
+mermaid.initialize({
+startOnLoad:false,securityLevel:'strict',theme:'base',
+flowchart:nat,sequence:nat,er:nat,state:nat,class:nat,pie:nat,
+gantt:nat,journey:nat,timeline:nat,gitGraph:nat,mindmap:nat,xyChart:nat,
+quadrantChart:nat,sankey:nat,c4:nat,requirement:nat,block:nat,
+packet:nat,kanban:nat,architecture:nat,radar:nat,
+themeVariables:{background:bg,mainBkg:pal.surface,primaryColor:pal.surface,
+primaryTextColor:pal.text,lineColor:pal.line,primaryBorderColor:pal.border,
+nodeBorder:pal.border,clusterBorder:pal.border,edgeLabelBackground:bg,
+clusterBkg:'rgba(127,127,127,0.07)',titleColor:pal.text,
+darkMode:dark,rowOdd:bg,rowEven:'rgba(127,127,127,0.07)',
+attributeBackgroundColorOdd:bg,attributeBackgroundColorEven:'rgba(127,127,127,0.07)',
+fontSize:'16px',fontFamily:font},
+themeCSS:'.node rect, .node circle, .node polygon, .node path, .cluster rect { stroke-width: 2px; }'
+});
+items.forEach(function(it){
+var id='claude-mermaid-'+seq++;
+mermaid.render(id,it.src).then(function(r){
+if(gen!==renderGen)return;
+var prev=it.pre.previousElementSibling;
+if(prev&&prev.className==='mermaid-diagram'&&prev!==it.mount)return;
+it.mount.innerHTML=r.svg;
+if(!it.mount.parentNode)it.pre.parentNode.insertBefore(it.mount,it.pre);
+it.pre.style.display='none';
+},function(){
+var scratch=document.getElementById(id);
+if(scratch)scratch.parentNode.removeChild(scratch);
+scratch=document.getElementById('d'+id);
+if(scratch)scratch.parentNode.removeChild(scratch);
+if(gen!==renderGen)return;
+if(it.mount.parentNode)it.mount.parentNode.removeChild(it.mount);
+it.pre.style.display='';
+});
+});
+}
+render();
+if(mq&&mq.addEventListener)mq.addEventListener('change',render);
+if(typeof MutationObserver!=='undefined')new MutationObserver(render).observe(root,{attributes:true,attributeFilter:['data-theme']});
+})();</script>
+<!--claude-mermaid-runtime-end-->
+
+</body></html>
