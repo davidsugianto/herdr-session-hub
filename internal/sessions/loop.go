@@ -49,6 +49,11 @@ const (
 	// code "events_lost" (using the subscribe request id) and closes the
 	// connection, so the adapter maps that line to this kind.
 	EventsLost SourceEventKind = "events_lost"
+	// Resync: the session topology changed (a pane appeared, moved or gained an
+	// agent), so the current subscription no longer covers every agent. The loop
+	// resubscribes and re-snapshots immediately. Unlike EventsLost this is
+	// routine, not a failure: it never counts towards the loss backoff.
+	Resync SourceEventKind = "resync"
 )
 
 // SourceEvent is one already-decoded event from a subscription.
@@ -139,6 +144,7 @@ func defaultBackoff(attempt int) time.Duration {
 
 var (
 	errEventsLost   = errors.New("sessions: events lost")
+	errResync       = errors.New("sessions: resync requested")
 	errStreamClosed = errors.New("sessions: event stream closed")
 	errNilStream    = errors.New("sessions: Subscribe returned a nil stream")
 )
@@ -191,6 +197,9 @@ func Run(ctx context.Context, session string, src Source, out chan<- Update, opt
 		}
 		if r.synced {
 			attempt = 0
+		}
+		if errors.Is(err, errResync) {
+			continue // routine topology change: resubscribe and re-snapshot right away
 		}
 		if errors.Is(err, errEventsLost) {
 			// Not an outage: resubscribe and reconcile right away. Only
@@ -260,6 +269,8 @@ func (r *runner) connect(ctx context.Context) error {
 			switch ev.Kind {
 			case EventsLost:
 				return errEventsLost
+			case Resync:
+				return errResync
 			case AgentUpsert:
 				r.gotEvent = true
 				if !r.apply(ctx, ev.Agent) {

@@ -519,3 +519,50 @@ func TestClientSubscribeServerCloseReleasesContextCallback(t *testing.T) {
 		t.Fatalf("active callbacks after server close = %d, want 0 (leak)", got)
 	}
 }
+
+// herdr 0.9.3 answers one request per connection and then closes it (observed
+// against a real server), so request/response callers must dial per call.
+func TestClientCallOnceDialsPerCall(t *testing.T) {
+	var mu sync.Mutex
+	conns := 0
+	srv := newFakeServer(t, func(conn net.Conn, r *bufio.Reader) {
+		mu.Lock()
+		conns++
+		mu.Unlock()
+		m, ok := readReq(t, r)
+		if !ok {
+			return
+		}
+		_, _ = conn.Write([]byte(`{"id":"` + m.ID + `","result":{"type":"pong","version":"x"}}` + "\n"))
+		// one request per connection: returning closes it, like herdr does
+	})
+	var out struct{ Type string }
+	for i := 0; i < 3; i++ {
+		if err := CallOnce(ctxT(t), srv.path, "ping", nil, &out); err != nil {
+			t.Fatalf("call %d: %v", i, err)
+		}
+		if out.Type != "pong" {
+			t.Fatalf("call %d: result %+v", i, out)
+		}
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if conns != 3 {
+		t.Fatalf("connections = %d, want 3", conns)
+	}
+}
+
+func TestClientCallOnceReturnsServerError(t *testing.T) {
+	srv := newFakeServer(t, func(conn net.Conn, r *bufio.Reader) {
+		m, ok := readReq(t, r)
+		if !ok {
+			return
+		}
+		_, _ = conn.Write([]byte(`{"id":"` + m.ID + `","error":{"code":"not_found","message":"nope"}}` + "\n"))
+	})
+	err := CallOnce(ctxT(t), srv.path, "x", nil, nil)
+	var he *Error
+	if !errors.As(err, &he) || he.Code != "not_found" {
+		t.Fatalf("err = %v, want *Error not_found", err)
+	}
+}

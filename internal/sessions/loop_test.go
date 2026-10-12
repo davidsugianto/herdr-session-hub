@@ -743,3 +743,17 @@ func TestLoopEventsLostBackoff(t *testing.T) {
 		})
 	}
 }
+
+// Resync means "topology changed, resubscribe and re-snapshot": it is routine,
+// not a failure, so it must never back off even when it repeats.
+func TestLoopResyncIsImmediateAndNotCounted(t *testing.T) {
+	resync := func() *loopStream {
+		s := newLoopStream()
+		s.push(SourceEvent{Kind: Resync})
+		return s
+	}
+	got := runLossScript(t, []*loopStream{resync(), resync(), resync(), newLoopStream()})
+	if len(got) != 0 {
+		t.Fatalf("Backoff called for Resync: %v", got)
+	}
+}

@@ -107,6 +107,8 @@ func readLine(r *bufio.Reader) ([]byte, error) {
 }
 
 // Client is a single herdr socket connection supporting concurrent calls.
+// Note that herdr itself closes a connection after answering one request, so
+// only the first Call on a real connection succeeds; see CallOnce.
 type Client struct {
 	conn net.Conn
 	seq  atomic.Uint64
@@ -260,6 +262,20 @@ func (c *Client) write(ctx context.Context, buf []byte) error {
 		return fmt.Errorf("herdr: write: %w", err)
 	}
 	return nil
+}
+
+// CallOnce dials socketPath, performs one request and closes the connection.
+//
+// herdr 0.9.3 answers a single request per connection and then closes it
+// (observed against a real server), so request/response callers should use
+// CallOnce rather than reusing a Client for a second Call.
+func CallOnce(ctx context.Context, socketPath, method string, params any, result any) error {
+	c, err := Dial(ctx, socketPath)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = c.Close() }()
+	return c.Call(ctx, method, params, result)
 }
 
 // Close closes the connection. It is idempotent.
