@@ -134,12 +134,20 @@ type fakeStore struct {
 	evSession string
 	auditErr  error
 	nextDev   int
+
+	settings   map[string]string
+	settingErr error
+	settingN   int // Setting calls
+	pushSubs   []store.PushSub
+	mutes      map[[2]string]store.Mute
 }
 
 func newFakeStore() *fakeStore {
 	return &fakeStore{
-		tokens: map[string]store.Device{"tok-1": {ID: "dev-1", Name: "phone"}, "tok-2": {ID: "dev-2", Name: "tablet"}},
-		codes:  map[string]bool{"good-code": true},
+		tokens:   map[string]store.Device{"tok-1": {ID: "dev-1", Name: "phone"}, "tok-2": {ID: "dev-2", Name: "tablet"}},
+		codes:    map[string]bool{"good-code": true},
+		settings: map[string]string{},
+		mutes:    map[[2]string]store.Mute{},
 	}
 }
 
@@ -217,6 +225,122 @@ func (s *fakeStore) RevokeDevice(_ context.Context, id string) error {
 }
 func (s *fakeStore) Prune(context.Context, time.Time) error { return nil }
 func (s *fakeStore) Close() error                           { return nil }
+
+// SettingsStore, PushStore and MuteStore.
+var (
+	_ store.SettingsStore = (*fakeStore)(nil)
+	_ store.PushStore     = (*fakeStore)(nil)
+	_ store.MuteStore     = (*fakeStore)(nil)
+)
+
+func (s *fakeStore) Setting(_ context.Context, key string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.settingN++
+	if s.settingErr != nil {
+		return "", s.settingErr
+	}
+	v, ok := s.settings[key]
+	if !ok {
+		return "", store.ErrNotFound
+	}
+	return v, nil
+}
+func (s *fakeStore) SetSetting(_ context.Context, key, value string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.settings[key] = value
+	return nil
+}
+func (s *fakeStore) DeleteSetting(_ context.Context, key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.settings, key)
+	return nil
+}
+
+func (s *fakeStore) AddPushSub(_ context.Context, p store.PushSub) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, q := range s.pushSubs {
+		if q.Endpoint == p.Endpoint {
+			s.pushSubs[i] = p
+			return nil
+		}
+	}
+	s.pushSubs = append(s.pushSubs, p)
+	return nil
+}
+func (s *fakeStore) RemovePushSub(_ context.Context, endpoint string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, q := range s.pushSubs {
+		if q.Endpoint == endpoint {
+			s.pushSubs = append(s.pushSubs[:i], s.pushSubs[i+1:]...)
+			return nil
+		}
+	}
+	return nil
+}
+func (s *fakeStore) PushSubs(context.Context) ([]store.PushSub, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]store.PushSub(nil), s.pushSubs...), nil
+}
+
+func (s *fakeStore) SetMute(_ context.Context, m store.Mute) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.mutes[[2]string{m.Scope, m.Key}] = m
+	return nil
+}
+func (s *fakeStore) DeleteMute(_ context.Context, scope, key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.mutes, [2]string{scope, key})
+	return nil
+}
+func (s *fakeStore) Mutes(_ context.Context, now time.Time) ([]store.Mute, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []store.Mute
+	for _, m := range s.mutes {
+		if m.Until.IsZero() || m.Until.After(now) {
+			out = append(out, m)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Scope+"/"+out[i].Key < out[j].Scope+"/"+out[j].Key })
+	return out, nil
+}
+
+func (s *fakeStore) settingCalls() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.settingN
+}
+
+// ---- fake push notifier ----
+
+type fakeNotifier struct {
+	mu    sync.Mutex
+	key   string
+	err   error
+	tests []string // device ids passed to SendTest
+}
+
+func (n *fakeNotifier) PublicKey() string { return n.key }
+func (n *fakeNotifier) SendTest(_ context.Context, deviceID string) error {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.tests = append(n.tests, deviceID)
+	return n.err
+}
+
+func (n *fakeNotifier) testCalls() []string {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	return append([]string(nil), n.tests...)
+}
 
 func (s *fakeStore) auditRows() []store.AuditEntry {
 	s.mu.Lock()

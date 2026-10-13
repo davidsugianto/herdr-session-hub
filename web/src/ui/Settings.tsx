@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { ApiError, getDevices, getMe, revokeDevice } from "../lib/api";
 import { relTime, sessionColor } from "../lib/format";
 import { auth, connection, sessions } from "../lib/store";
-import type { Device } from "../lib/types";
+import { clearMute, disablePush, enablePush, getMutes, getNotifyInfo, getPushState, sendTestPush } from "../lib/push";
+import type { PushState } from "../lib/push";
+import type { Device, Mute, NotifyInfo } from "../lib/types";
 import { PairForm } from "./pair-form";
 import "./settings.css";
 
@@ -12,6 +14,102 @@ const errMessage = (e: unknown): string =>
   e instanceof ApiError ? e.message || e.code : e instanceof Error ? e.message : "Request failed";
 
 const CONNECTION_LABEL = { connecting: "Connecting…", online: "Connected", offline: "Offline" } as const;
+
+function Notifications() {
+  const [state, setState] = useState<PushState | null>(null);
+  const [info, setInfo] = useState<NotifyInfo | null>(null);
+  const [mutes, setMutes] = useState<Mute[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const alive = useRef(true);
+
+  const loadMutes = useCallback(async () => {
+    try { const m = await getMutes(); if (alive.current) setMutes(m); } catch { /* list stays as is */ }
+  }, []);
+
+  useEffect(() => {
+    alive.current = true;
+    void getPushState().then((s) => { if (alive.current) setState(s); });
+    void getNotifyInfo().then((i) => { if (alive.current) setInfo(i); }).catch(() => {});
+    void loadMutes();
+    return () => { alive.current = false; };
+  }, [loadMutes]);
+
+  // Runs straight from the tap: enablePush asks for permission before any other await.
+  const toggle = async (): Promise<void> => {
+    setBusy(true);
+    setMsg("");
+    try {
+      setState(state?.status === "on" ? await disablePush() : await enablePush());
+    } catch (e) {
+      setMsg(errMessage(e));
+      setState(await getPushState());
+    } finally {
+      if (alive.current) setBusy(false);
+    }
+  };
+
+  const test = async (): Promise<void> => {
+    setBusy(true);
+    setMsg("");
+    try {
+      await sendTestPush();
+      setMsg("Test sent. It should arrive in a moment.");
+    } catch (e) {
+      setMsg(e instanceof ApiError && e.code === "no_subscription" ? "This device has no subscription yet. Enable notifications first." : errMessage(e));
+    } finally {
+      if (alive.current) setBusy(false);
+    }
+  };
+
+  const unmute = async (m: Mute): Promise<void> => {
+    try { await clearMute(m.scope, m.key); } catch (e) { setMsg(errMessage(e)); }
+    await loadMutes();
+  };
+
+  const on = state?.status === "on";
+  const canToggle = state !== null && (state.status === "on" || state.status === "off") && info?.push_available !== false;
+  return (
+    <section class="se-card" aria-labelledby="se-notif">
+      <h2 id="se-notif">Notifications</h2>
+      <p class="se-muted" role="status">
+        {state === null ? "Checking…" : info?.push_available === false && state.status !== "needs-install" && state.status !== "unsupported"
+          ? "Push is not configured on the hub." : state.message}
+      </p>
+      {msg && <p class="se-muted" role="status">{msg}</p>}
+      <div class="se-row">
+        <button type="button" class={on ? "" : "primary"} disabled={busy || !canToggle} onClick={() => void toggle()}>
+          {on ? "Disable notifications" : "Enable notifications"}
+        </button>
+        {on && <button type="button" disabled={busy} onClick={() => void test()}>Test notification</button>}
+      </div>
+      {info && info.quiet_hours.length > 0 && (
+        <>
+          <h3 class="se-sub-h">Quiet hours (set in config)</h3>
+          <ul class="se-list">
+            {info.quiet_hours.map((q) => (
+              <li key={q.session} class="se-item"><span class="se-name">{q.session}</span><span class="se-muted">{q.rule}</span></li>
+            ))}
+          </ul>
+          <p class="se-muted">{info.blocked_breaks_quiet ? "Blocked agents still notify during quiet hours." : "Nothing notifies during quiet hours."}</p>
+        </>
+      )}
+      {mutes.length > 0 && (
+        <>
+          <h3 class="se-sub-h">Muted</h3>
+          <ul class="se-list">
+            {mutes.map((m) => (
+              <li key={`${m.scope}/${m.key}`} class="se-item">
+                <span class="se-grow"><span class="se-name">{m.key}</span><span class="se-muted">{m.scope}</span></span>
+                <button type="button" onClick={() => void unmute(m)}>Unmute</button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
+  );
+}
 
 export function Settings() {
   const [devices, setDevices] = useState<Device[] | null>(null);
@@ -111,6 +209,8 @@ export function Settings() {
           </ul>
         )}
       </section>
+
+      <Notifications />
 
       <section class="se-card" aria-labelledby="se-dev">
         <h2 id="se-dev">Devices</h2>

@@ -24,3 +24,5 @@
 
 .se-bg-s1 { background: var(--s1); } .se-bg-s2 { background: var(--s2); } .se-bg-s3 { background: var(--s3); }
 .se-bg-s4 { background: var(--s4); } .se-bg-s5 { background: var(--s5); } .se-bg-s6 { background: var(--s6); }
+.se-sub-h { margin: 4px 0 0; font-size: 13px; color: var(--muted); font-weight: 600; }
+.se-card button { min-height: var(--tap); }

@@ -56,6 +56,33 @@ type Config struct {
 	// It sets its own headers; the API's strict CSP and no-store apply only to
 	// /api/ and /healthz. The Host check still guards it.
 	Static http.Handler
+
+	// Settings supplies the tunnel host and owner login (see identity.go).
+	// When nil the identity check is skipped and only Host rules apply.
+	Settings store.SettingsStore
+	// Push stores Web Push subscriptions; nil disables subscribe/unsubscribe.
+	Push store.PushStore
+	// Mutes stores notification mutes; nil disables /api/mutes.
+	Mutes store.MuteStore
+	// Notifier sends Web Push messages; nil means push is unavailable.
+	Notifier PushNotifier
+	// Quiet and BlockedBreaksQuiet are reported read-only by GET /api/notify.
+	Quiet              []QuietRule
+	BlockedBreaksQuiet bool
+}
+
+// PushNotifier is the Web Push sender as the API needs it.
+type PushNotifier interface {
+	PublicKey() string
+	// SendTest pushes a test message to deviceID's subscriptions. It returns
+	// store.ErrNotFound when the device has none.
+	SendTest(ctx context.Context, deviceID string) error
+}
+
+// QuietRule is one session's quiet_hours setting, as configured.
+type QuietRule struct {
+	Session string `json:"session"`
+	Rule    string `json:"rule"`
 }
 
 type server struct {
@@ -68,6 +95,13 @@ type server struct {
 	hosts     hostMatcher
 	heartbeat time.Duration
 	static    bool // a Static handler is mounted: strict headers are path-scoped
+
+	tunnel             *tunnelCache // nil when Config.Settings is nil
+	push               store.PushStore
+	mutes              store.MuteStore
+	notifier           PushNotifier
+	quiet              []QuietRule
+	blockedBreaksQuiet bool
 
 	auth        *authCache
 	actionLimit *limiter // per device: burst 30, refill 2/s
@@ -101,6 +135,15 @@ func New(ctx context.Context, c Config) http.Handler {
 		actionLimit: newLimiter(30, 2, now),
 		pairLimit:   newLimiter(10, 10.0/60.0, now),
 		ring:        newRing(ringSize, now()),
+
+		push:               c.Push,
+		mutes:              c.Mutes,
+		notifier:           c.Notifier,
+		quiet:              append([]QuietRule(nil), c.Quiet...),
+		blockedBreaksQuiet: c.BlockedBreaksQuiet,
+	}
+	if c.Settings != nil {
+		s.tunnel = newTunnelCache(c.Settings, now, tunnelCacheTTL)
 	}
 	changes := c.Engine.Subscribe(ctx)
 	go s.pump(changes)
@@ -120,6 +163,14 @@ func New(ctx context.Context, c Config) http.Handler {
 	mux.Handle("DELETE /api/devices/{id}", s.authed(s.handleRevokeDevice))
 	mux.Handle("GET /api/timeline", s.authed(s.handleTimeline))
 	mux.Handle("GET /api/stream", s.authed(s.handleStream))
+	mux.Handle("GET /api/push/key", s.authed(s.handlePushKey))
+	mux.Handle("POST /api/push/subscribe", s.authed(s.handlePushSubscribe))
+	mux.Handle("DELETE /api/push/subscribe", s.authed(s.handlePushUnsubscribe))
+	mux.Handle("POST /api/push/test", s.authed(s.handlePushTest))
+	mux.Handle("GET /api/mutes", s.authed(s.handleMutes))
+	mux.Handle("PUT /api/mutes", s.authed(s.handleSetMute))
+	mux.Handle("DELETE /api/mutes", s.authed(s.handleDeleteMute))
+	mux.Handle("GET /api/notify", s.authed(s.handleNotify))
 	mux.Handle("/api/", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		writeAPIErr(w, newErr(http.StatusNotFound, "not_found", "no such route"))
 	}))
@@ -130,21 +181,32 @@ func New(ctx context.Context, c Config) http.Handler {
 	return s.base(mux)
 }
 
-// base rejects foreign Host headers and sets the API's security headers. The
-// Host check runs before everything, static files included. The strict
-// API headers (CSP default-src 'none', no-store) go on /api/, /healthz and any
-// rejected request; static responses keep the headers their handler sets.
+// base rejects foreign Host headers, then requests that fail the tunnel
+// identity check (identity.go), and sets the API's security headers. Both
+// checks run before everything, static files included. The strict API headers
+// (CSP default-src 'none', no-store) go on /api/, /healthz and any rejected
+// request; static responses keep the headers their handler sets.
 func (s *server) base(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("X-Content-Type-Options", "nosniff")
-		allowed := s.hosts.allowed(r.Host)
-		if !allowed || !s.static || isAPIPath(r.URL.Path) {
+		var reject *apiErr
+		var tun tunnelInfo
+		if s.tunnel != nil {
+			tun = s.tunnel.get()
+		}
+		switch {
+		case !s.hosts.allowed(r.Host) && !tun.isHost(r.Host):
+			reject = newErr(http.StatusForbidden, "forbidden_host", "host not allowed")
+		case s.tunnel != nil && !identityOK(r, tun):
+			reject = newErr(http.StatusForbidden, "forbidden_identity", "identity not allowed")
+		}
+		if reject != nil || !s.static || isAPIPath(r.URL.Path) {
 			h.Set("Cache-Control", "no-store")
 			h.Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
 		}
-		if !allowed {
-			writeAPIErr(w, newErr(http.StatusForbidden, "forbidden_host", "host not allowed"))
+		if reject != nil {
+			writeAPIErr(w, reject)
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -193,10 +255,7 @@ func (m hostMatcher) allowed(hostport string) bool {
 	if h == "" {
 		return false
 	}
-	if h == "localhost" || strings.HasSuffix(h, ".localhost") {
-		return true
-	}
-	if ip, err := netip.ParseAddr(h); err == nil && ip.IsLoopback() {
+	if isLoopbackHost(h) {
 		return true
 	}
 	if m.exact[h] {
@@ -208,6 +267,16 @@ func (m hostMatcher) allowed(hostport string) bool {
 		}
 	}
 	return false
+}
+
+// isLoopbackHost reports whether a normalized host name (see normHost) is
+// localhost, *.localhost or a loopback IP.
+func isLoopbackHost(h string) bool {
+	if h == "localhost" || strings.HasSuffix(h, ".localhost") {
+		return true
+	}
+	ip, err := netip.ParseAddr(h)
+	return err == nil && ip.Unmap().IsLoopback()
 }
 
 // ---- JSON helpers and errors ----

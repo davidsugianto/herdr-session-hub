@@ -189,7 +189,7 @@ func (s *server) handlePair(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   cookieMaxAge,
 		HttpOnly: true,
-		Secure:   s.secure,
+		Secure:   s.secureCookie(r),
 		SameSite: http.SameSiteStrictMode,
 	})
 	writeJSON(w, http.StatusOK, map[string]any{"token": token, "device": dev})

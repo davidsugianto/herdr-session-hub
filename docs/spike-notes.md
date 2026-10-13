@@ -129,3 +129,26 @@ Facts marked **verified** were observed against a real session.
 - **Stopping and restarting a real session** against the hub.
 - **`events_lost` against a real server.**
 - **pi and omp blocked screens.**
+
+# Milestone 3 findings
+
+Built without Tailscale or an iPhone available, so the end-to-end path is **not verified**.
+
+## Verified (unit tests, fakes)
+
+- Config quiet-hours grammar, store schema v2 migration from v1, mutes expiry, push subscription cascade on device revoke.
+- Tunnel: `tailscale status --json` parsing and `serve` argument construction against fixtures.
+- API identity check, dynamic tunnel Host, Secure cookie, push and mute endpoints.
+- Notifier rules (blocked episode, finished, mutes, quiet hours, gone pruning, resubscribe) and web push sink status mapping against an `httptest` server.
+- Service worker push and click handlers with a stubbed `self`; web bundle size.
+
+## Not verified (needs the Mac with Tailscale and the iPhone)
+
+- `tailscale serve --bg --https=443 <target>` argument syntax on the installed Tailscale version (`tailscale serve --help`).
+- `tailscale serve` sets `Tailscale-User-Login` and `X-Forwarded-Proto: https`, and keeps the original Host header.
+- iOS Web Push delivery, the lock-screen latency target (under 2 s), tap-to-open deep link `/#/a/<session%2Fterminal>`, and the app icon badge.
+- Apple push service accepting the configured VAPID `contact` (`sub` claim).
+- Whether iOS tolerates suppressing the system notification when the app is in front (the app always shows it for now).
+- Home Screen app pairing on the tunnel origin (separate cookies, paste a code).
+- Real `caffeinate -i -w <pid>` keep-awake behavior.
+- pi and omp blocked screens, session stop/restart and `events_lost` (still open from earlier milestones).

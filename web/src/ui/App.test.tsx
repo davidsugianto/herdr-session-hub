@@ -18,4 +18,9 @@ describe("parseRoute", () => {
   it("keeps a malformed escape as the raw id instead of throwing", () => {
     expect(parseRoute("#/a/%E0%A4%A")).toEqual({ name: "detail", id: "%E0%A4%A" });
   });
+
+  it("resolves a push payload url to the agent id", () => {
+    const url = new URL("/#/a/work%2Ft1", "https://hub.example");
+    expect(parseRoute(url.hash)).toEqual({ name: "detail", id: "work/t1" });
+  });
 });

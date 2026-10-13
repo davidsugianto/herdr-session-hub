@@ -1,4 +1,4 @@
-import type { AgentDetail, Device, TimelineEvent } from "./types";
+import type { AgentDetail, Device, Mute, MuteScope, NotifyInfo, TimelineEvent } from "./types";
 import { auth } from "./auth";
 
 export class ApiError extends Error {
@@ -98,3 +98,18 @@ export const sendText = (id: string, text: string, enter: boolean): Promise<void
 export const sendKeys = (id: string, keys: string[]): Promise<void> => post(agentPath(id, "/keys"), { keys });
 export const interrupt = (id: string, force = false): Promise<void> => post(agentPath(id, "/interrupt"), { force });
 export const markSeen = (id: string): Promise<void> => post(agentPath(id, "/seen"), {});
+
+export const getPushKey = async (): Promise<string> => (await request<{ public_key: string }>("/api/push/key")).public_key;
+export const pushSubscribe = (subscription: unknown): Promise<void> => post("/api/push/subscribe", { subscription });
+export const pushUnsubscribe = async (endpoint: string): Promise<void> => {
+  await request<unknown>("/api/push/subscribe", { method: "DELETE", body: { endpoint } });
+};
+export const pushTest = (): Promise<void> => post("/api/push/test");
+export const getMutes = async (): Promise<Mute[]> => (await request<{ mutes: Mute[] }>("/api/mutes")).mutes ?? [];
+export const putMute = async (scope: MuteScope, key: string, until: string | null = null): Promise<void> => {
+  await request<unknown>("/api/mutes", { method: "PUT", body: { scope, key, until } });
+};
+export const deleteMute = async (scope: MuteScope, key: string): Promise<void> => {
+  await request<unknown>("/api/mutes", { method: "DELETE", body: { scope, key } });
+};
+export const getNotify = (): Promise<NotifyInfo> => request<NotifyInfo>("/api/notify");

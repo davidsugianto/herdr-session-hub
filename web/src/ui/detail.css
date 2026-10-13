@@ -23,3 +23,5 @@
 .hold::after { content: ""; position: absolute; inset: 0; background: var(--danger); opacity: .25; transform: scaleX(0); transform-origin: left; }
 .hold.holding::after { animation: hold-fill 800ms linear forwards; }
 @keyframes hold-fill { to { transform: scaleX(1); } }
+.detail-menu { display: flex; flex-direction: column; gap: 8px; }
+.detail-menu button { min-height: var(--tap); }

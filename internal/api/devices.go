@@ -62,7 +62,7 @@ func (s *server) handleRevokeDevice(w http.ResponseWriter, r *http.Request) {
 			Path:     "/",
 			MaxAge:   -1,
 			HttpOnly: true,
-			Secure:   s.secure,
+			Secure:   s.secureCookie(r),
 			SameSite: http.SameSiteStrictMode,
 		})
 	}

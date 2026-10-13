@@ -15,7 +15,9 @@ import (
 	"github.com/davidsugianto/herdr-session-hub/internal/actions"
 	"github.com/davidsugianto/herdr-session-hub/internal/api"
 	"github.com/davidsugianto/herdr-session-hub/internal/config"
+	"github.com/davidsugianto/herdr-session-hub/internal/macos"
 	"github.com/davidsugianto/herdr-session-hub/internal/model"
+	"github.com/davidsugianto/herdr-session-hub/internal/notify"
 	"github.com/davidsugianto/herdr-session-hub/internal/profiles"
 	"github.com/davidsugianto/herdr-session-hub/internal/sessions"
 	"github.com/davidsugianto/herdr-session-hub/internal/store"
@@ -173,13 +175,28 @@ func runServe(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		_, _ = fmt.Fprintln(stderr, "hub:", err)
 		return 1
 	}
+	notifier, err := notify.New(notify.Options{Engine: engine, Store: st, Prompts: exec, Quiet: quietPolicy{cfg},
+		BlockedBreaksQuiet: cfg.Notify.BlockedBreaksQuiet, Label: cfg.Label, Contact: cfg.Notify.Contact, Log: stderr})
+	if err != nil {
+		_, _ = fmt.Fprintln(stderr, "hub:", err)
+		return 1
+	}
+	go notifier.Run(ctx)
+	go macos.Run(ctx, macos.Options{Mode: cfg.Mac.KeepAwake, Engine: engine, Log: stderr})
+
 	handler := api.New(ctx, api.Config{Engine: engine, Store: st, Actions: exec, Secure: false, AllowedHosts: opts.allowHosts,
+		Settings: st, Push: st, Mutes: st, Notifier: notifier, Quiet: quietRules(cfg), BlockedBreaksQuiet: cfg.Notify.BlockedBreaksQuiet,
 		Static: webui.Handler(web.FS())})
 	srv := &http.Server{Handler: handler, ReadHeaderTimeout: 10 * time.Second}
 	_, _ = fmt.Fprintf(stdout, "hub listening on http://%s (db %s)\n", ln.Addr(), opts.dbPath)
 	_, _ = fmt.Fprintf(stdout, "open http://%s and pair with: hub pair\n", ln.Addr())
 	for _, line := range listenAdvice(ln.Addr().String(), opts.allowHosts) {
 		_, _ = fmt.Fprintln(stderr, line)
+	}
+	if host, err := st.Setting(ctx, store.SettingTunnelHost); err == nil && host != "" {
+		_, _ = fmt.Fprintf(stdout, "remote https://%s (tailnet only, from `hub tunnel`)\n", host)
+	} else {
+		_, _ = fmt.Fprintln(stdout, "remote run `hub tunnel` to reach the hub from your iPhone over Tailscale")
 	}
 
 	errc := make(chan error, 1)
@@ -290,4 +307,20 @@ func pruneLoop(ctx context.Context, st store.Store, stderr io.Writer) {
 			prune()
 		}
 	}
+}
+
+// quietPolicy adapts config.Config to notify.QuietPolicy.
+type quietPolicy struct{ cfg config.Config }
+
+func (q quietPolicy) Active(session string, t time.Time) bool { return q.cfg.QuietActive(session, t) }
+
+// quietRules lists the configured per-session quiet_hours for GET /api/notify.
+func quietRules(cfg config.Config) []api.QuietRule {
+	var out []api.QuietRule
+	for _, s := range cfg.Sessions {
+		if s.QuietHours != "" {
+			out = append(out, api.QuietRule{Session: s.Name, Rule: s.QuietHours})
+		}
+	}
+	return out
 }
