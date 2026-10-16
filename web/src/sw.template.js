@@ -1,4 +1,6 @@
-// Offline shell only. Never caches /api/*. Push handlers arrive in milestone 3.
+// Offline shell + Web Push. Never caches /api/*.
+// push: always shows a system notification (iOS revokes subscriptions that do not), sets the app badge and
+// tells any open window. notificationclick: focuses a window and opens the payload url, else opens one.
 const VERSION = "__VERSION__";
 const CACHE = "hub-shell-" + VERSION;
 const PRECACHE = __PRECACHE__;
@@ -23,3 +25,56 @@ self.addEventListener("fetch", (e) => {
   }
   e.respondWith(caches.match(req).then((hit) => hit || fetch(req)));
 });
+
+const GENERIC = { title: "Herdr Session Hub", body: "Something needs your attention", url: "/#/", tag: "hub" };
+
+function parsePayload(data) {
+  let p = null;
+  try { p = data ? data.json() : null; } catch { /* malformed: fall back to generic */ }
+  if (!p || typeof p !== "object") return { ...GENERIC };
+  const str = (v, d) => (typeof v === "string" && v ? v : d);
+  return {
+    title: str(p.title, GENERIC.title),
+    body: str(p.body, ""),
+    // Only same-origin paths: a push must not be able to open an arbitrary site.
+    url: typeof p.url === "string" && p.url.startsWith("/") && !p.url.startsWith("//") ? p.url : GENERIC.url,
+    tag: str(p.tag, GENERIC.tag),
+    badge: Number.isFinite(p.badge) ? p.badge : undefined,
+    kind: str(p.kind, ""),
+    agent_id: str(p.agent_id, ""),
+  };
+}
+
+async function onPush(event) {
+  const p = parsePayload(event.data);
+  const work = [self.registration.showNotification(p.title, {
+    body: p.body, tag: p.tag, renotify: true, icon: "/icon-192.png", data: { url: p.url, agent_id: p.agent_id, kind: p.kind },
+  })];
+  const nav = self.navigator;
+  if (p.badge !== undefined && nav && nav.setAppBadge) {
+    work.push((p.badge > 0 ? nav.setAppBadge(p.badge) : nav.clearAppBadge ? nav.clearAppBadge() : Promise.resolve()).catch(() => {}));
+  }
+  work.push(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true })
+      .then((cs) => cs.filter((c) => c.visibilityState === "visible").forEach((c) => c.postMessage({ type: "push", payload: p })))
+      .catch(() => {}),
+  );
+  await Promise.all(work);
+}
+
+async function onClick(event) {
+  event.notification.close();
+  const raw = (event.notification.data && event.notification.data.url) || GENERIC.url;
+  const url = new URL(raw, self.location.origin).href;
+  const cs = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  const c = cs.find((w) => new URL(w.url).origin === self.location.origin);
+  if (c) {
+    try { await c.focus(); } catch { /* best effort */ }
+    try { await c.navigate(url); } catch { c.postMessage({ type: "navigate", url: raw }); }
+    return;
+  }
+  await self.clients.openWindow(url);
+}
+
+self.addEventListener("push", (e) => e.waitUntil(onPush(e)));
+self.addEventListener("notificationclick", (e) => e.waitUntil(onClick(e)));

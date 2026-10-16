@@ -1,4 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
+import { closeStaleNotifications, setBadge } from "../lib/push";
 import { pairWithCode, consumePairFragment } from "../lib/pair";
 import { agents, auth, connection, startSync } from "../lib/store";
 import { AgentDetail } from "./AgentDetail";
@@ -58,11 +59,31 @@ export function App() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
+  const attention = Object.values(agents.value).filter((a) => a.state === "blocked" || a.state === "finished").length;
+
+  useEffect(() => { setBadge(attention); }, [attention]);
+
+  useEffect(() => {
+    // Delivered notifications are stale once the app is in front of the user.
+    const sweep = () => { if (document.visibilityState === "visible") void closeStaleNotifications(); };
+    sweep();
+    document.addEventListener("visibilitychange", sweep);
+    const onMsg = (e: MessageEvent) => {
+      const d = e.data as { type?: string; url?: string; payload?: { title?: string; body?: string } } | null;
+      if (d?.type === "push" && d.payload) showToast([d.payload.title, d.payload.body].filter(Boolean).join(": "));
+      if (d?.type === "navigate" && typeof d.url === "string") location.hash = d.url.replace(/^\/?#?/, "#");
+    };
+    navigator.serviceWorker?.addEventListener("message", onMsg);
+    return () => {
+      document.removeEventListener("visibilitychange", sweep);
+      navigator.serviceWorker?.removeEventListener("message", onMsg);
+    };
+  }, []);
+
   if (auth.value === "unpaired") {
     return <><PairScreen /><ToastHost /></>;
   }
 
-  const attention = Object.values(agents.value).filter((a) => a.state === "blocked" || a.state === "finished").length;
   const offline = connection.value === "offline";
 
   let screen;

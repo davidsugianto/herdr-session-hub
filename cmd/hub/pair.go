@@ -36,11 +36,18 @@ func runPair(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		_, _ = fmt.Fprintln(stderr, "hub:", err)
 		return 1
 	}
-	link := *base + "/#pair=" + url.QueryEscape(code)
-	_, _ = fmt.Fprintf(stdout, "pairing code: %s (valid %s, single use)\n%s\n", code, *ttl, link)
-	if !*noQR {
-		qrterminal.GenerateHalfBlock(link, qrterminal.L, stdout)
-	}
+	printPairing(stdout, code, *ttl, *base, *noQR)
 	_, _ = fmt.Fprintf(stdout, "exchange it for a token:\n  curl -s -X POST %s/api/pair -d '{\"code\":\"%s\",\"device_name\":\"curl\"}'\n", *base, code)
 	return 0
+}
+
+// printPairing prints the pairing code, the pairing link under base and
+// (unless noQR) a QR of the link. It returns nothing: write errors on a
+// terminal are not actionable.
+func printPairing(stdout io.Writer, code string, ttl time.Duration, base string, noQR bool) {
+	link := base + "/#pair=" + url.QueryEscape(code)
+	_, _ = fmt.Fprintf(stdout, "pairing code: %s (valid %s, single use)\n%s\n", code, ttl, link)
+	if !noQR {
+		qrterminal.GenerateHalfBlock(link, qrterminal.L, stdout)
+	}
 }

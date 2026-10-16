@@ -22,8 +22,9 @@ func TestConfigLoadMissingFile(t *testing.T) {
 		t.Fatalf("missing file should not error: %v", err)
 	}
 	if len(cfg.Sessions) != 0 {
-		t.Fatalf("expected empty config, got %+v", cfg)
+		t.Fatalf("expected no sessions, got %+v", cfg)
 	}
+	assertDefaults(t, cfg)
 }
 
 func TestConfigLoadValid(t *testing.T) {
@@ -58,7 +59,7 @@ func TestConfigUnknownSectionsIgnored(t *testing.T) {
 [discovery]
 auto = true
 
-[mac]
+[future]
 keep_awake = true
 
 [[session]]

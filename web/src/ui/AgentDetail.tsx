@@ -1,7 +1,9 @@
 import { useEffect, useState } from "preact/hooks";
 import { interrupt, markSeen } from "../lib/api";
 import { relTime, sessionColor, stateLabel } from "../lib/format";
+import { clearMute, getMutes, isMuted, setMute } from "../lib/push";
 import { agents, lastAgentId } from "../lib/store";
+import type { MuteScope } from "../lib/types";
 import { ApprovalCard } from "./ApprovalCard";
 import { OutputViewer } from "./OutputViewer";
 import { ReplySheet } from "./ReplySheet";
@@ -17,7 +19,27 @@ export function AgentDetail({ id }: { id: string }) {
   const [replying, setReplying] = useState(false);
   const [menu, setMenu] = useState(false);
 
+  const [mutes, setMutes] = useState<Awaited<ReturnType<typeof getMutes>>>([]);
+  const session = agent?.session ?? "";
+
   useEffect(() => { lastAgentId.value = id; }, [id]);
+
+  useEffect(() => {
+    let live = true;
+    getMutes().then((m) => { if (live) setMutes(m); }).catch(() => {});
+    return () => { live = false; };
+  }, [id]);
+
+  const toggleMute = async (scope: MuteScope, key: string, label: string) => {
+    const muted = isMuted(mutes, scope, key);
+    try {
+      if (muted) await clearMute(scope, key); else await setMute(scope, key);
+      setMutes(await getMutes());
+      showToast(muted ? `Unmuted ${label}` : `Muted ${label}`);
+    } catch (e) {
+      showToast(`Could not ${muted ? "unmute" : "mute"}: ${errMsg(e)}`);
+    }
+  };
 
   useEffect(() => {
     if (state !== "finished") return;
@@ -69,6 +91,12 @@ export function AgentDetail({ id }: { id: string }) {
       <footer class="detail-actions">
         {menu && (
           <div class="detail-menu">
+            <button type="button" aria-pressed={isMuted(mutes, "agent", id)} onClick={() => void toggleMute("agent", id, agent.name)}>
+              {isMuted(mutes, "agent", id) ? "Unmute this agent" : "Mute this agent"}
+            </button>
+            <button type="button" aria-pressed={isMuted(mutes, "session", session)} onClick={() => void toggleMute("session", session, agent.session_label || session)}>
+              {isMuted(mutes, "session", session) ? "Unmute this session" : "Mute this session"}
+            </button>
             <HoldButton class="danger" hint="Keep holding" onConfirm={() => stop(true)}>Hold to force stop</HoldButton>
           </div>
         )}

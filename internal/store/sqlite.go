@@ -23,7 +23,7 @@ import (
 const DefaultRetention = 14 * 24 * time.Hour
 
 const (
-	schemaVersion = 1
+	schemaVersion = 2
 
 	// pairCodeLen is the length of a pairing code.
 	pairCodeLen = 8
@@ -70,6 +70,25 @@ CREATE TABLE IF NOT EXISTS pair_codes (
 	expires_at INTEGER NOT NULL,
 	used       INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS settings (
+	key   TEXT PRIMARY KEY,
+	value TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS push_subs (
+	endpoint   TEXT    PRIMARY KEY,
+	device_id  TEXT    NOT NULL REFERENCES devices (id) ON DELETE CASCADE,
+	p256dh     TEXT    NOT NULL,
+	auth       TEXT    NOT NULL,
+	created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS push_subs_device ON push_subs (device_id);
+CREATE TABLE IF NOT EXISTS mutes (
+	scope      TEXT    NOT NULL,
+	key        TEXT    NOT NULL,
+	until      INTEGER NOT NULL DEFAULT 0, -- unix ms; 0 = until removed
+	created_at INTEGER NOT NULL,
+	PRIMARY KEY (scope, key)
+);
 `
 
 // SQLite is the SQLite-backed Store.
@@ -78,7 +97,12 @@ type SQLite struct {
 	now func() time.Time // injectable clock for tests
 }
 
-var _ Store = (*SQLite)(nil)
+var (
+	_ Store         = (*SQLite)(nil)
+	_ SettingsStore = (*SQLite)(nil)
+	_ PushStore     = (*SQLite)(nil)
+	_ MuteStore     = (*SQLite)(nil)
+)
 
 // DefaultPath returns $XDG_DATA_HOME/herdr-session-hub/hub.db, or
 // ~/.local/share/herdr-session-hub/hub.db when XDG_DATA_HOME is unset or empty.
@@ -159,6 +183,9 @@ func (s *SQLite) migrate(ctx context.Context) error {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO schema_version (version) VALUES (?)`, schemaVersion); err != nil {
 			return err
 		}
+	} else if _, err := tx.ExecContext(ctx, `UPDATE schema_version SET version = ? WHERE version < ?`, schemaVersion, schemaVersion); err != nil {
+		// Older databases only lack the tables created above; bump the marker.
+		return err
 	}
 	return tx.Commit()
 }
@@ -379,7 +406,16 @@ func (s *SQLite) Devices(ctx context.Context) ([]Device, error) {
 }
 
 func (s *SQLite) RevokeDevice(ctx context.Context, id string) error {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM devices WHERE id = ?`, id)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("revoke device: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	// Explicit as well as ON DELETE CASCADE, in case foreign keys are off.
+	if _, err := tx.ExecContext(ctx, `DELETE FROM push_subs WHERE device_id = ?`, id); err != nil {
+		return fmt.Errorf("revoke device: %w", err)
+	}
+	res, err := tx.ExecContext(ctx, `DELETE FROM devices WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("revoke device: %w", err)
 	}
@@ -389,6 +425,9 @@ func (s *SQLite) RevokeDevice(ctx context.Context, id string) error {
 	}
 	if n == 0 {
 		return ErrNotFound
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("revoke device: %w", err)
 	}
 	return nil
 }

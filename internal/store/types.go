@@ -71,3 +71,65 @@ type Store interface {
 	Prune(ctx context.Context, cutoff time.Time) error
 	Close() error
 }
+
+// Setting keys used with SettingsStore.
+const (
+	SettingVAPIDPublic  = "vapid.public"  // base64url uncompressed P-256 public key
+	SettingVAPIDPrivate = "vapid.private" // base64url private key
+	SettingTunnelHost   = "tunnel.host"   // tailnet DNS name, e.g. macbook.tail1234.ts.net (no trailing dot)
+	SettingTunnelLogin  = "tunnel.login"  // Tailscale login name of the owner
+)
+
+// SettingsStore is a small key/value table shared by hub processes.
+// Setting returns ErrNotFound for an unknown key.
+type SettingsStore interface {
+	Setting(ctx context.Context, key string) (string, error)
+	SetSetting(ctx context.Context, key, value string) error
+	DeleteSetting(ctx context.Context, key string) error
+}
+
+// PushSub is one Web Push subscription owned by a paired device.
+type PushSub struct {
+	Endpoint  string    `json:"endpoint"`
+	P256dh    string    `json:"p256dh"`
+	Auth      string    `json:"auth"`
+	DeviceID  string    `json:"device_id"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// PushStore persists push subscriptions. Revoking a device removes its
+// subscriptions.
+type PushStore interface {
+	// AddPushSub inserts or replaces (by Endpoint) a subscription.
+	AddPushSub(ctx context.Context, s PushSub) error
+	// RemovePushSub deletes by endpoint; a missing endpoint is not an error.
+	RemovePushSub(ctx context.Context, endpoint string) error
+	// PushSubs returns every subscription, oldest first.
+	PushSubs(ctx context.Context) ([]PushSub, error)
+}
+
+// Mute scopes.
+const (
+	MuteAgent   = "agent"   // Key is the agent id "<session>/<terminal_id>"
+	MuteSession = "session" // Key is the herdr session name
+)
+
+// Mute silences notifications for an agent or a session. A zero Until means
+// until removed.
+type Mute struct {
+	Scope     string    `json:"scope"`
+	Key       string    `json:"key"`
+	Until     time.Time `json:"until"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// MuteStore persists mutes.
+type MuteStore interface {
+	// SetMute inserts or replaces by (Scope, Key).
+	SetMute(ctx context.Context, m Mute) error
+	// DeleteMute removes a mute; a missing one is not an error.
+	DeleteMute(ctx context.Context, scope, key string) error
+	// Mutes returns mutes that are active at now (Until zero or after now).
+	// Expired rows may be deleted.
+	Mutes(ctx context.Context, now time.Time) ([]Mute, error)
+}

@@ -79,6 +79,21 @@ export interface Device {
   last_seen: string;
 }
 
+export type MuteScope = "agent" | "session";
+
+export interface Mute {
+  scope: MuteScope;
+  key: string;
+  until: string | null; // RFC3339; null = until unmuted
+  created_at: string;
+}
+
+export interface NotifyInfo {
+  quiet_hours: { session: string; rule: string }[];
+  blocked_breaks_quiet: boolean;
+  push_available: boolean;
+}
+
 export type Connection = "connecting" | "online" | "offline";
 export type AuthState = "unknown" | "paired" | "unpaired";
 
